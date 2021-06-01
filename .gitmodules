@@ -1,0 +1,6 @@
+[submodule "drivers/gpiodev"]
+	path = drivers/gpiodev
+	url = git@github.com:SPACE-HAUC/gpiodev.git
+[submodule "drivers/spibus"]
+	path = drivers/spibus
+	url = git@github.com:SPACE-HAUC/spibus.git
