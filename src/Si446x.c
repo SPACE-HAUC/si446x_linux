@@ -29,7 +29,7 @@ static spibus si446x_spi[1];
 	}
 #endif
 
-static pthread_mutex_t si446x_spi_access[1];
+static pthread_mutex_t si446x_spi_access[1] = {PTHREAD_MUTEX_INITIALIZER};
 
 #include "Si446x.h"
 #include "Si446x_config.h"
@@ -359,6 +359,7 @@ static void Si446x_destroy(void)
 void Si446x_init()
 {
 	gpioSetMode(SI446X_CSN, GPIO_OUT);
+	gpioWrite(SI446X_CSN, GPIO_HIGH); // set CS to high on init
 	gpioSetMode(SI446X_SDN, GPIO_OUT);
 	gpioSetMode(SI446X_IRQ, GPIO_IN);
 	gpioSetPullUpDown(SI446X_IRQ, GPIO_PUD_UP); // added pull up on pin
