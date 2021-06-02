@@ -555,7 +555,9 @@ int Si446x_read(void *buff, uint8_t maxlen)
 {
 	bool read_rx_fifo = false;
 	uint8_t len = 0;
-	int retval = gpioWaitIRQ(SI446X_IRQ, GPIO_IRQ_FALL, 10000);
+	int retval = -1;
+retry:
+	retval = gpioWaitIRQ(SI446X_IRQ, GPIO_IRQ_FALL, 10000);
 	if (retval <= 0) // error or timeout
 		return retval;
 	uint8_t interrupts[8];
@@ -587,7 +589,7 @@ int Si446x_read(void *buff, uint8_t maxlen)
 		}
 		SI446X_CB_RXCOMPLETE(len, getLatchedRSSI());
 		read_rx_fifo = true;
-		retval = 1; // success
+		retval = len; // success
 	}
 
 	// Corrupted packet
@@ -600,6 +602,7 @@ int Si446x_read(void *buff, uint8_t maxlen)
 			setState(IDLE_STATE); // We're in sleep mode (acually, we're now in SPI active mode) after an invalid packet to fix the INVALID_SYNC issue
 #endif
 		SI446X_CB_RXINVALID(getLatchedRSSI()); // TODO remove RSSI stuff for invalid packets, entering SLEEP mode looses the latched value?
+		eprintf("CRC invalid");
 		retval = -SI446X_CRC_INVALID;
 	}
 
@@ -615,6 +618,11 @@ int Si446x_read(void *buff, uint8_t maxlen)
 
 	if (read_rx_fifo)
 	{
+		if (len > maxlen)
+		{
+			eprintf("Received %u bytes larger than buffer size %u", len, maxlen);
+			len = maxlen;
+		}
 		SI446X_ATOMIC()
 		{
 			CHIPSELECT()
@@ -626,6 +634,8 @@ int Si446x_read(void *buff, uint8_t maxlen)
 		}
 		setState(SI446X_STATE_RX);
 	}
+	else
+		goto retry;
 	return retval;
 }
 

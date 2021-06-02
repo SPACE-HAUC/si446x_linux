@@ -312,11 +312,11 @@ int16_t Si446x_getRSSI(void);
 void Si446x_setTxPower(uint8_t pwr);
 
 /**
-* @brief Read received data from FIFO
+* @brief Enable interrupts and wait for RX IRQ/timeout
 *
 * @param [buff] Pointer to buffer to place data
-* @param [len] Number of bytes to read, make sure not to read more bytes than what the FIFO has stored. The number of bytes that can be read is passed in the ::SI446X_CB_RXCOMPLETE() callback.
-* @return Positive on success, negative on error, 0 on timeout
+* @param [len] Number of bytes to read, make sure not to read more than 128 bytes.
+* @return Positive (number of bytes received) on success, negative on error, 0 on timeout
 */
 int Si446x_read(void *buff, uint8_t len);
 /**
