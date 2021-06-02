@@ -350,6 +350,12 @@ static void applyStartupConfig(void)
 	}
 }
 
+static void Si446x_destroy(void)
+{
+	Si446x_sleep();
+	spibus_destroy(si446x_spi);
+}
+
 void Si446x_init()
 {
 	gpioSetMode(SI446X_CSN, GPIO_OUT);
@@ -381,6 +387,7 @@ void Si446x_init()
 	enabledInterrupts[IRQ_PACKET] = (1 << SI446X_PACKET_RX_PEND) | (1 << SI446X_CRC_ERROR_PEND);
 	//enabledInterrupts[IRQ_MODEM] = (1<<SI446X_SYNC_DETECT_PEND);
 	Si446x_setupCallback(SI446X_CBS_RXBEGIN, 1); // enable receive interrupt
+	atexit(Si446x_destroy);
 }
 
 void Si446x_getInfo(si446x_info_t *info)

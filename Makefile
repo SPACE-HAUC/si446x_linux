@@ -8,7 +8,10 @@ COBJS = drivers/gpiodev/gpiodev.o \
 	
 LIBTARGET = libsi446x.a
 
-all: $(LIBTARGET)
+all: $(LIBTARGET) basic_test
+
+basic_test: basic_test.o $(LIBTARGET)
+	$(CC) -o $@.out $< $(LIBTARGET) $(EDLDFLAGS)
 
 $(LIBTARGET): $(COBJS)
 	ar -crus $(LIBTARGET) $(COBJS)
@@ -21,6 +24,8 @@ $(LIBTARGET): $(COBJS)
 clean:
 	rm -vf $(LIBTARGET)
 	rm -vf $(COBJS)
+	rm -vf *.out
+	rm -vf *.o
 
 spotless: clean
 	rm -rf doc
