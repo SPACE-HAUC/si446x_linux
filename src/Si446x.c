@@ -355,6 +355,7 @@ void Si446x_init()
 	gpioSetMode(SI446X_CSN, GPIO_OUT);
 	gpioSetMode(SI446X_SDN, GPIO_OUT);
 	gpioSetMode(SI446X_IRQ, GPIO_IN);
+	gpioSetPullUpDown(SI446X_IRQ, GPIO_PUD_UP); // added pull up on pin
 
 	si446x_spi->bus = 0;
 	si446x_spi->cs = 0;
