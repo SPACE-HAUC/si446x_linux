@@ -591,13 +591,13 @@ retry:
 	// Valid packet
 	if (interrupts[2] & (1 << SI446X_PACKET_RX_PEND))
 	{
+		len = 0;
 		SI446X_ATOMIC()
 		{
 			CHIPSELECT()
 			{
 				spi_transfer_nr(SI446X_CMD_READ_RX_FIFO);
-				for (uint8_t i = 0; i < len; i++)
-					len = spi_transfer(0xFF);
+				len = spi_transfer(0xFF); // read 1 byte
 			}
 		}
 		setState(SI446X_STATE_RX);
