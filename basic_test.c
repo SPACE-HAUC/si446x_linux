@@ -60,9 +60,11 @@ int main()
     memset(buf, 0x0, sizeof(buf));
     eprintf("Trying to receive: ");
     short rssi;
-    eprintf("RSSI: %d dBm Read %u bytes: %s", rssi, Si446x_read(buf, 128, &rssi), buf);
+    uint8_t rd_sz = Si446x_read(buf, 128, &rssi);
+    eprintf("RSSI: %d dBm Read %u bytes: %s", rssi, rd_sz, buf);
     memset(buf, 0x0, sizeof(buf));
     eprintf("Trying to receive: ");
-    eprintf("RSSI: %d dBm Read %u bytes: %s", rssi, Si446x_read(buf, 128, &rssi), buf);
+    rd_sz = Si446x_read(buf, 128, &rssi);
+    eprintf("RSSI: %d dBm Read %u bytes: %s", rssi, rd_sz, buf);
     return 0;
 }
