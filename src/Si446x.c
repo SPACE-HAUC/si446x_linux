@@ -603,7 +603,7 @@ retry:
 		setState(SI446X_STATE_RX);
 		if (!read_rssi)
 			rssi = getLatchedRSSI();
-		eprintf("RX packet pending: RSSI %d", rssi);
+		eprintf("RX packet pending: RSSI %d, length: %u", rssi, len);
 		SI446X_CB_RXCOMPLETE(len, rssi);
 		read_rx_fifo = true;
 		retval = len; // success
