@@ -51,7 +51,7 @@ int main()
     eprintf("Press enter to send 128 bytes of data or Ctrl + D to exit\n");
     c = 0;
     while (((c = getchar()) != EOF) && (c != '\n'));
-    char buf[] = "\r\nLet's try sending a text, shall we?\r\nReally trying hard to make this 128 bytes long!\nI could try any random text but I won't..";
+    char buf[] = "\r\nLet's try sending a text, shall we?\r\nReally trying hard to make this 128 bytes long!\r\nI could try any random text but I won't.";
     Si446x_write(buf, 128); // write all but null character
     eprintf("Press enter to send 128 bytes of data or Ctrl + D to exit\n");
     c = 0;

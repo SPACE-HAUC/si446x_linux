@@ -112,19 +112,20 @@ static inline uint8_t cdeselect(void)
 
 #define SI446X_NO_INTERRUPT() for (uint8_t __unused_var = 1; __unused_var; __unused_var = 0)
 
-#define SI446X_ATOMIC() for (uint8_t _cs2 = interrupt_off(); _cs2; _cs2 = interrupt_on())
 
-static inline int interrupt_on()
+static int interrupt_on()
 {
 	pthread_mutex_lock(si446x_spi_access);
-	return 0;
-}
-
-static inline int interrupt_off()
-{
-	pthread_mutex_unlock(si446x_spi_access);
 	return 1;
 }
+
+static void interrupt_off(int *in)
+{
+	(void) in;
+	pthread_mutex_unlock(si446x_spi_access);
+}
+
+#define SI446X_ATOMIC() for (int _cs2 = interrupt_on(), _var_clean __attribute__((__cleanup__(interrupt_off))) = 1; _cs2; _cs2 = 0)
 
 // Read CTS and if its ok then read the command buffer
 static uint8_t getResponse(void *buff, uint8_t len)
@@ -640,7 +641,7 @@ retry:
 	return retval;
 }
 
-static uint8_t Si446x_TX(void *packet, uint8_t len, uint8_t channel, si446x_state_t onTxFinish)
+static int Si446x_TX(void *packet, uint8_t len, uint8_t channel, si446x_state_t onTxFinish)
 {
 	// TODO what happens if len is 0?
 
@@ -652,7 +653,7 @@ static uint8_t Si446x_TX(void *packet, uint8_t len, uint8_t channel, si446x_stat
 	SI446X_NO_INTERRUPT()
 	{
 		if (getState() == SI446X_STATE_TX) // Already transmitting
-			return 0;
+			return 0; // error, already transmitting
 
 		// TODO collision avoid or maybe just do collision detect (RSSI jump)
 
@@ -703,6 +704,11 @@ static uint8_t Si446x_TX(void *packet, uint8_t len, uint8_t channel, si446x_stat
 
 int Si446x_write(void *buff, uint8_t len)
 {
+	if (len > MAX_PACKET_LEN)
+	{
+		eprintf("Packet size %u > %u not allowed", len, (uint8_t) MAX_PACKET_LEN);
+		return -1;
+	}
 	return Si446x_TX(buff, len, 0, SI446X_STATE_RX);
 }
 
