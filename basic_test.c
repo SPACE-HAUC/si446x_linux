@@ -36,5 +36,17 @@ int main()
     printf("\n");
     printf("func"": 0x%x", info.func);
     printf("\n");
+    eprintf("Press enter for PIPE mode: ");
+    int c = 0;
+    while (((c = getchar()) != EOF) && (c != '\n'));
+    Si446x_en_pipe();
+    eprintf("Pipe mode activated");
+    eprintf("Press enter to send PIPE mode again or Ctrl + D to exit");
+    c = 0;
+    while (((c = getchar()) != EOF) && (c != '\n'));
+    if (c == EOF)
+        return 0;
+    else
+        Si446x_en_pipe();
     return 0;
 }
