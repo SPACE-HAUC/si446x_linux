@@ -69,6 +69,8 @@ static inline uint8_t spi_transfer(uint8_t data)
 
 static const uint8_t config[] = RADIO_CONFIGURATION_DATA_ARRAY;
 
+static int SI446X_READ_TOUT = 10000; // 10 second timeout by default
+
 static volatile uint8_t enabledInterrupts[3];
 
 // http://stackoverflow.com/questions/10802324/aliasing-a-function-on-a-c-interface-within-a-c-application-on-linux
@@ -563,7 +565,7 @@ retry:
     read_rssi = false;
 	if (gpioRead(SI446X_IRQ) == GPIO_HIGH)
 	{
-		retval = gpioWaitIRQ(SI446X_IRQ, GPIO_IRQ_FALL, 10000);
+		retval = gpioWaitIRQ(SI446X_IRQ, GPIO_IRQ_FALL, SI446X_READ_TOUT);
 		if (retval <= 0) // error or timeout
 		{
 			return -1;
@@ -846,4 +848,15 @@ uint8_t Si446x_dump(void *buff, uint8_t group)
 	}
 
 	return length;
+}
+
+int Si446x_get_read_irq_tout(void)
+{
+	return SI446X_READ_TOUT;
+}
+
+int Si446x_set_read_irq_tout(int tout)
+{
+	SI446X_READ_TOUT = tout;
+	return SI446X_READ_TOUT;
 }

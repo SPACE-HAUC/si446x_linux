@@ -458,6 +458,20 @@ uint8_t Si446x_readGPIO(void);
 */
 uint8_t Si446x_dump(void *buff, uint8_t group);
 
+/**
+ * @brief Get read interrupt timeout (ms)
+ * 
+ * @return int Timeout in ms
+ */
+int Si446x_get_read_irq_tout(void);
+/**
+ * @brief Set read interrupt timeout (ms)
+ * 
+ * @param tout Timeout in ms (-1 to disable poll timeout)
+ * @return int Set timeout in ms
+ */
+int Si446x_set_read_irq_tout(int tout);
+
 #ifdef __cplusplus
 // }
 #endif
