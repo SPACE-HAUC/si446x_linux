@@ -57,5 +57,11 @@ int main()
     c = 0;
     while (((c = getchar()) != EOF) && (c != '\n'));
     Si446x_write(buf, 128); // write all but null character
+    memset(buf, 0x0, sizeof(buf));
+    eprintf("Trying to receive: ");
+    eprintf("Read %u bytes: %s", Si446x_read(buf, 128), buf);
+    memset(buf, 0x0, sizeof(buf));
+    eprintf("Trying to receive: ");
+    eprintf("Read %u bytes: %s", Si446x_read(buf, 128), buf);
     return 0;
 }

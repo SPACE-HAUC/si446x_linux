@@ -112,7 +112,6 @@ static inline uint8_t cdeselect(void)
 
 #define SI446X_NO_INTERRUPT() for (uint8_t __unused_var = 1; __unused_var; __unused_var = 0)
 
-
 static int interrupt_on()
 {
 	pthread_mutex_lock(si446x_spi_access);
@@ -121,7 +120,7 @@ static int interrupt_on()
 
 static void interrupt_off(int *in)
 {
-	(void) in;
+	(void)in;
 	pthread_mutex_unlock(si446x_spi_access);
 }
 
@@ -556,12 +555,21 @@ uint8_t Si446x_sleep()
 int Si446x_read(void *buff, uint8_t maxlen)
 {
 	bool read_rx_fifo = false;
+	bool read_rssi = false;
+	int16_t rssi = 0;
 	uint8_t len = 0;
 	int retval = -1;
 retry:
-	retval = gpioWaitIRQ(SI446X_IRQ, GPIO_IRQ_FALL, 10000);
-	if (retval <= 0) // error or timeout
-		return retval;
+    read_rssi = false;
+	if (gpioRead(SI446X_IRQ) == GPIO_HIGH)
+	{
+		retval = gpioWaitIRQ(SI446X_IRQ, GPIO_IRQ_FALL, 10000);
+		if (retval <= 0) // error or timeout
+		{
+			return -1;
+		}
+	}
+	// else, we have an interrupt to process
 	uint8_t interrupts[8];
 	interrupt(interrupts); // read in IRQ vectors
 	// We could read the enabled interrupts properties instead of keep their states in RAM, but that would be much slower
@@ -574,7 +582,10 @@ retry:
 	{
 		//fix_invalidSync_irq(1);
 		//		Si446x_setupCallback(SI446X_CBS_INVALIDSYNC, 1); // Enable INVALID_SYNC when a new packet starts, sometimes a corrupted packet will mess the radio up
-		SI446X_CB_RXBEGIN(getLatchedRSSI());
+		if (!read_rssi)
+			rssi = getLatchedRSSI();
+		eprintf("Sync detect: RSSI %d", rssi);
+		SI446X_CB_RXBEGIN(rssi);
 	}
 
 	// Valid packet
@@ -589,7 +600,11 @@ retry:
 					len = spi_transfer(0xFF);
 			}
 		}
-		SI446X_CB_RXCOMPLETE(len, getLatchedRSSI());
+		setState(SI446X_STATE_RX);
+		if (!read_rssi)
+			rssi = getLatchedRSSI();
+		eprintf("RX packet pending: RSSI %d", rssi);
+		SI446X_CB_RXCOMPLETE(len, rssi);
 		read_rx_fifo = true;
 		retval = len; // success
 	}
@@ -653,7 +668,7 @@ static int Si446x_TX(void *packet, uint8_t len, uint8_t channel, si446x_state_t 
 	SI446X_NO_INTERRUPT()
 	{
 		if (getState() == SI446X_STATE_TX) // Already transmitting
-			return 0; // error, already transmitting
+			return 0;					   // error, already transmitting
 
 		// TODO collision avoid or maybe just do collision detect (RSSI jump)
 
@@ -706,7 +721,7 @@ int Si446x_write(void *buff, uint8_t len)
 {
 	if (len > MAX_PACKET_LEN)
 	{
-		eprintf("Packet size %u > %u not allowed", len, (uint8_t) MAX_PACKET_LEN);
+		eprintf("Packet size %u > %u not allowed", len, (uint8_t)MAX_PACKET_LEN);
 		return -1;
 	}
 	return Si446x_TX(buff, len, 0, SI446X_STATE_RX);
