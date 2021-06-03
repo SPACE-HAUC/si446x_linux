@@ -314,11 +314,12 @@ void Si446x_setTxPower(uint8_t pwr);
 /**
 * @brief Enable interrupts and wait for RX IRQ/timeout
 *
-* @param [buff] Pointer to buffer to place data
-* @param [len] Size of buffer in bytes.
+* @param buff Pointer to buffer to place data
+* @param len Size of buffer in bytes.
+* @param rssi RSSI of the received signal (dBm)
 * @return Positive (number of bytes received) on success, negative on error, 0 on timeout
 */
-int Si446x_read(void *buff, uint8_t len);
+int Si446x_read(void *buff, uint8_t len, int16_t *rssi);
 /**
  * @brief Transmit data
  * 

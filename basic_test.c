@@ -59,9 +59,10 @@ int main()
     Si446x_write(buf, 128); // write all but null character
     memset(buf, 0x0, sizeof(buf));
     eprintf("Trying to receive: ");
-    eprintf("Read %u bytes: %s", Si446x_read(buf, 128), buf);
+    short rssi;
+    eprintf("RSSI: %d dBm Read %u bytes: %s", rssi, Si446x_read(buf, 128, &rssi), buf);
     memset(buf, 0x0, sizeof(buf));
     eprintf("Trying to receive: ");
-    eprintf("Read %u bytes: %s", Si446x_read(buf, 128), buf);
+    eprintf("RSSI: %d dBm Read %u bytes: %s", rssi, Si446x_read(buf, 128, &rssi), buf);
     return 0;
 }

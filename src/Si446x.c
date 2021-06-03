@@ -552,11 +552,11 @@ uint8_t Si446x_sleep()
 	return 1;
 }
 
-int Si446x_read(void *buff, uint8_t maxlen)
+int Si446x_read(void *buff, uint8_t maxlen, int16_t *rssi)
 {
 	bool read_rx_fifo = false;
 	bool read_rssi = false;
-	int16_t rssi = 0;
+	int16_t _rssi = 0;
 	uint8_t len = 0;
 	int retval = -1;
 retry:
@@ -583,9 +583,11 @@ retry:
 		//fix_invalidSync_irq(1);
 		//		Si446x_setupCallback(SI446X_CBS_INVALIDSYNC, 1); // Enable INVALID_SYNC when a new packet starts, sometimes a corrupted packet will mess the radio up
 		if (!read_rssi)
-			rssi = getLatchedRSSI();
-		eprintf("Sync detect: RSSI %d", rssi);
-		SI446X_CB_RXBEGIN(rssi);
+			_rssi = getLatchedRSSI();
+		if (rssi != NULL)
+			*rssi = _rssi;
+		// eprintf("Sync detect: RSSI %d", rssi);
+		SI446X_CB_RXBEGIN(_rssi);
 	}
 
 	// Valid packet
@@ -602,9 +604,11 @@ retry:
 		}
 		setState(SI446X_STATE_RX);
 		if (!read_rssi)
-			rssi = getLatchedRSSI();
-		eprintf("RX packet pending: RSSI %d, length: %u", rssi, len);
-		SI446X_CB_RXCOMPLETE(len, rssi);
+			_rssi = getLatchedRSSI();
+		// eprintf("RX packet pending: RSSI %d, length: %u", rssi, len);
+		SI446X_CB_RXCOMPLETE(len, _rssi);
+		if (rssi != NULL)
+			*rssi = _rssi;
 		read_rx_fifo = true;
 		retval = len; // success
 	}
