@@ -48,5 +48,14 @@ int main()
         return 0;
     else
         Si446x_en_pipe();
+    eprintf("Press enter to send 128 bytes of data or Ctrl + D to exit\n");
+    c = 0;
+    while (((c = getchar()) != EOF) && (c != '\n'));
+    char buf[] = "\nLet's try sending a text, shall we?\nReally trying hard to make this 128 bytes long!\nI could try any random text but I won't..\n\n";
+    Si446x_write(buf, 128); // write all but null character
+    eprintf("Press enter to send 128 bytes of data or Ctrl + D to exit\n");
+    c = 0;
+    while (((c = getchar()) != EOF) && (c != '\n'));
+    Si446x_write(buf, 128); // write all but null character
     return 0;
 }
