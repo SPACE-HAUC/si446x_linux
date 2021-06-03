@@ -609,7 +609,8 @@ retry:
 		SI446X_CB_RXCOMPLETE(len, _rssi);
 		if (rssi != NULL)
 			*rssi = _rssi;
-		read_rx_fifo = true;
+		if (len != 0xff)
+			read_rx_fifo = true;
 		retval = len; // success
 	}
 
