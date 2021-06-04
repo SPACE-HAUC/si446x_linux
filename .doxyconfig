@@ -1,5 +1,5 @@
 PROJECT_NAME = "Si446x Userspace Driver"
-INPUT = README.MD include/Si446x.h include/Si446x_config.h include/Si446x_defs.h
+INPUT = README.MD include/si446x.h
 OUTPUT_DIRECTORY = doc
 USE_MDFILE_AS_MAINPAGE = README.MD
 EXTRACT_STATIC = YES

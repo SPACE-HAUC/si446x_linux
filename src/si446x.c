@@ -31,9 +31,9 @@ static spibus si446x_spi[1];
 
 static pthread_mutex_t si446x_spi_access[1] = {PTHREAD_MUTEX_INITIALIZER};
 
-#include "Si446x.h"
-#include "Si446x_config.h"
-#include "Si446x_defs.h"
+#include "si446x.h"
+#include "si446x_config.h"
+#include "si446x_defs.h"
 
 #include "radio_config.h"
 
@@ -202,7 +202,7 @@ static void doAPI(void *data, uint8_t len, void *out, uint8_t outLen)
 * @param [state] Enable or disable the callbacks passed in \p callbacks parameter (1 = Enable, 0 = Disable)
 * @return (none)
 */
-void Si446x_setupCallback(uint16_t callbacks, uint8_t state);
+void si446x_setupCallback(uint16_t callbacks, uint8_t state);
 #endif
 
 // Configure a bunch of properties (up to 12 properties in one go)
@@ -352,13 +352,13 @@ static void applyStartupConfig(void)
 	}
 }
 
-static void Si446x_destroy(void)
+static void si446x_destroy(void)
 {
-	Si446x_sleep();
+	si446x_sleep();
 	spibus_destroy(si446x_spi);
 }
 
-void Si446x_init()
+void si446x_init()
 {
 	gpioSetMode(SI446X_CSN, GPIO_OUT);
 	gpioWrite(SI446X_CSN, GPIO_HIGH); // set CS to high on init
@@ -385,15 +385,15 @@ void Si446x_init()
 	resetDevice();
 	applyStartupConfig();
 	interrupt(NULL);
-	Si446x_sleep();
+	si446x_sleep();
 
 	enabledInterrupts[IRQ_PACKET] = (1 << SI446X_PACKET_RX_PEND) | (1 << SI446X_CRC_ERROR_PEND);
 	//enabledInterrupts[IRQ_MODEM] = (1<<SI446X_SYNC_DETECT_PEND);
-	Si446x_setupCallback(SI446X_CBS_RXBEGIN, 1); // enable receive interrupt
-	atexit(Si446x_destroy);
+	si446x_setupCallback(SI446X_CBS_RXBEGIN, 1); // enable receive interrupt
+	atexit(si446x_destroy);
 }
 
-void Si446x_getInfo(si446x_info_t *info)
+void si446x_getInfo(si446x_info_t *info)
 {
 	uint8_t data[8] = {
 		SI446X_CMD_PART_INFO};
@@ -416,7 +416,7 @@ void Si446x_getInfo(si446x_info_t *info)
 	info->func = data[5];
 }
 
-int16_t Si446x_getRSSI()
+int16_t si446x_getRSSI()
 {
 	uint8_t data[3] = {
 		SI446X_CMD_GET_MODEM_STATUS,
@@ -426,25 +426,25 @@ int16_t Si446x_getRSSI()
 	return rssi;
 }
 
-si446x_state_t Si446x_getState()
+si446x_state_t si446x_getState()
 {
 	// TODO what about the state change delay with transmitting?
 	return getState();
 }
 
-void Si446x_setTxPower(uint8_t pwr)
+void si446x_setTxPower(uint8_t pwr)
 {
 	setProperty(SI446X_PA_PWR_LVL, pwr);
 }
 
-void Si446x_setLowBatt(uint16_t voltage)
+void si446x_setLowBatt(uint16_t voltage)
 {
 	// voltage should be between 1500 and 3050
 	uint8_t batt = (voltage / 50) - 30; //((voltage * 2) - 3000) / 100;
 	setProperty(SI446X_GLOBAL_LOW_BATT_THRESH, batt);
 }
 
-void Si446x_setupWUT(uint8_t r, uint16_t m, uint8_t ldc, uint8_t config)
+void si446x_setupWUT(uint8_t r, uint16_t m, uint8_t ldc, uint8_t config)
 {
 	// Maximum value of r is 20
 
@@ -492,7 +492,7 @@ void Si446x_setupWUT(uint8_t r, uint16_t m, uint8_t ldc, uint8_t config)
 	}
 }
 
-void Si446x_disableWUT()
+void si446x_disableWUT()
 {
 	SI446X_NO_INTERRUPT()
 	{
@@ -510,7 +510,7 @@ void Si446x_disableWUT()
 // PACKET BEGIN (SYNC, modem)
 // WUT and LOWBATT (cant turn off/on from here, use wutSetup instead)
 // INVALID SYNC (the fix thing)
-void Si446x_setupCallback(uint16_t callbacks, uint8_t state)
+void si446x_setupCallback(uint16_t callbacks, uint8_t state)
 {
 	SI446X_NO_INTERRUPT()
 	{
@@ -546,7 +546,7 @@ void Si446x_setupCallback(uint16_t callbacks, uint8_t state)
 */
 }
 
-uint8_t Si446x_sleep()
+uint8_t si446x_sleep()
 {
 	if (getState() == SI446X_STATE_TX)
 		return 0;
@@ -554,7 +554,7 @@ uint8_t Si446x_sleep()
 	return 1;
 }
 
-int Si446x_read(void *buff, uint8_t maxlen, int16_t *rssi)
+int si446x_read(void *buff, uint8_t maxlen, int16_t *rssi)
 {
 	bool read_rx_fifo = false;
 	bool read_rssi = false;
@@ -583,7 +583,7 @@ retry:
 	if (interrupts[4] & (1 << SI446X_SYNC_DETECT_PEND))
 	{
 		//fix_invalidSync_irq(1);
-		//		Si446x_setupCallback(SI446X_CBS_INVALIDSYNC, 1); // Enable INVALID_SYNC when a new packet starts, sometimes a corrupted packet will mess the radio up
+		//		si446x_setupCallback(SI446X_CBS_INVALIDSYNC, 1); // Enable INVALID_SYNC when a new packet starts, sometimes a corrupted packet will mess the radio up
 		if (!read_rssi)
 			_rssi = getLatchedRSSI();
 		if (rssi != NULL)
@@ -724,7 +724,7 @@ static int Si446x_TX(void *packet, uint8_t len, uint8_t channel, si446x_state_t 
 	return 1;
 }
 
-int Si446x_write(void *buff, uint8_t len)
+int si446x_write(void *buff, uint8_t len)
 {
 	if (len > MAX_PACKET_LEN)
 	{
@@ -741,7 +741,7 @@ static void Si446x_RX(uint8_t channel)
 		setState(IDLE_STATE);
 		clearFIFO();
 		//fix_invalidSync_irq(0);
-		//Si446x_setupCallback(SI446X_CBS_INVALIDSYNC, 0);
+		//si446x_setupCallback(SI446X_CBS_INVALIDSYNC, 0);
 		//setProperty(SI446X_PKT_FIELD_2_LENGTH_LOW, MAX_PACKET_LEN); // TODO ?
 		interrupt2(NULL, 0, 0, 0xFF); // TODO needed?
 
@@ -761,27 +761,27 @@ static void Si446x_RX(uint8_t channel)
 	}
 }
 
-uint16_t Si446x_adc_gpio(uint8_t pin)
+uint16_t si446x_adc_gpio(uint8_t pin)
 {
 	uint16_t result = getADC(SI446X_ADC_CONV_GPIO | pin, (SI446X_ADC_SPEED << 4) | SI446X_ADC_RANGE_3P6, 0);
 	return result;
 }
 
-uint16_t Si446x_adc_battery()
+uint16_t si446x_adc_battery()
 {
 	uint16_t result = getADC(SI446X_ADC_CONV_BATT, (SI446X_ADC_SPEED << 4), 2);
 	result = ((uint32_t)result * 75) / 32; // result * 2.34375;
 	return result;
 }
 
-float Si446x_adc_temperature()
+float si446x_adc_temperature()
 {
 	float result = getADC(SI446X_ADC_CONV_TEMP, (SI446X_ADC_SPEED << 4), 4);
 	result = (899 / 4096.0) * result - 293;
 	return result;
 }
 
-void Si446x_writeGPIO(si446x_gpio_t pin, uint8_t value)
+void si446x_writeGPIO(si446x_gpio_t pin, uint8_t value)
 {
 	uint8_t data[] = {
 		SI446X_CMD_GPIO_PIN_CFG,
@@ -796,7 +796,7 @@ void Si446x_writeGPIO(si446x_gpio_t pin, uint8_t value)
 	doAPI(data, sizeof(data), NULL, 0);
 }
 
-uint8_t Si446x_readGPIO()
+uint8_t si446x_readGPIO()
 {
 	uint8_t data[4] = {
 		SI446X_CMD_GPIO_PIN_CFG};
@@ -805,7 +805,7 @@ uint8_t Si446x_readGPIO()
 	return states;
 }
 
-uint8_t Si446x_dump(void *buff, uint8_t group)
+uint8_t si446x_dump(void *buff, uint8_t group)
 {
 	static const uint8_t groupSizes[] = {
 		SI446X_PROP_GROUP_GLOBAL, 0x0A,
@@ -850,12 +850,12 @@ uint8_t Si446x_dump(void *buff, uint8_t group)
 	return length;
 }
 
-int Si446x_get_read_irq_tout(void)
+int si446x_get_read_irq_tout(void)
 {
 	return SI446X_READ_TOUT;
 }
 
-int Si446x_set_read_irq_tout(int tout)
+int si446x_set_read_irq_tout(int tout)
 {
 	SI446X_READ_TOUT = tout;
 	return SI446X_READ_TOUT;

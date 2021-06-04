@@ -9,6 +9,16 @@
 #ifndef SI446X_DEFS_H_
 #define SI446X_DEFS_H_
 
+#ifndef _BV
+#define _BV(x) (1 << (x))
+#endif
+
+#define SI446X_CBS_SENT _BV(5 + 8) ///< Enable/disable packet sent callback
+//#define SI446X_CBS_RXCOMPLETE		_BV(4+8)
+//#define SI446X_CBS_RXINVALID		_BV(3+8)
+#define SI446X_CBS_RXBEGIN _BV(0) ///< Enable/disable packet receive begin callback
+//#define SI446X_CBS_INVALIDSYNC		_BV(5) ///< Don't use this, it's used internally by the library
+
 #define SI446X_CMD_POWER_UP				0x02
 #define SI446X_CMD_NOP					0x00
 #define SI446X_CMD_PART_INFO			0x01
