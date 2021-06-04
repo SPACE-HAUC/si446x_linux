@@ -4,6 +4,7 @@ EDLDFLAGS := -lpthread -lm $(LDFLAGS)
 
 COBJS = drivers/gpiodev/gpiodev.o \
 		drivers/spibus/spibus.o \
+		src/ringbuf.o \
 		src/si446x.o
 	
 LIBTARGET = libsi446x.a

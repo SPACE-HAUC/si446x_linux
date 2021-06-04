@@ -156,7 +156,7 @@ void si446x_setTxPower(uint8_t pwr);
 * @param rssi RSSI of the received signal (dBm)
 * @return Positive (number of bytes received) on success, negative on error, 0 on timeout
 */
-int si446x_read(void *buff, uint8_t len, int16_t *rssi);
+int si446x_read(void *buff, ssize_t len, int16_t *rssi);
 /**
  * @brief Transmit data
  * 

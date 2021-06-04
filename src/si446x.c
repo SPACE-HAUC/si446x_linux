@@ -9,6 +9,8 @@
  * 
  */
 
+#define _GNU_SOURCE
+
 #include <spibus/spibus.h>
 #include <gpiodev/gpiodev.h>
 
@@ -20,6 +22,21 @@ static spibus si446x_spi[1];
 #include <unistd.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#include <time.h>
+#include <sys/time.h>
+
+int get_diff(struct timespec *tm, int tout_ms)
+{
+	if (tout_ms < 0)
+		return -1;
+	if (clock_gettime(CLOCK_MONOTONIC, tm) < 0)
+		return -1;
+	ssize_t sec = tout_ms / 1000;
+	tout_ms = tout_ms % 1000; // only miliseconds left
+	tm->tv_sec += sec; // ms to sec
+	tm->tv_nsec = tout_ms * 1000 * 1000; // ms to ns
+	return 1;
+}
 
 #ifndef eprintf
 #define eprintf(str, ...)                                                        \
@@ -36,6 +53,8 @@ static pthread_mutex_t si446x_spi_access[1] = {PTHREAD_MUTEX_INITIALIZER};
 #include "si446x_defs.h"
 
 #include "radio_config.h"
+
+#include "ringbuf.h"
 
 #define IDLE_STATE SI446X_IDLE_MODE
 
@@ -358,6 +377,118 @@ static void si446x_destroy(void)
 	spibus_destroy(si446x_spi);
 }
 
+typedef struct
+{
+	ringbuf_t rbuf;
+	pthread_mutex_t lock[1];
+	pthread_mutex_t avail_m[1];
+	pthread_cond_t avail[1];
+	int16_t rssi;
+} c_ringbuf;
+
+static void si446x_receive(void *_data)
+{
+	c_ringbuf *data = (c_ringbuf *)_data;
+	bool read_rx_fifo = false;
+	bool read_rssi = false;
+	int16_t _rssi = 0;
+	uint8_t len = 0;
+	while (gpioRead(SI446X_IRQ) == GPIO_LOW)
+	{
+		read_rssi = false;
+		// else, we have an interrupt to process
+		uint8_t interrupts[8];
+		interrupt(interrupts); // read in IRQ vectors
+		// We could read the enabled interrupts properties instead of keep their states in RAM, but that would be much slower
+		interrupts[2] &= enabledInterrupts[IRQ_PACKET];
+		interrupts[4] &= enabledInterrupts[IRQ_MODEM];
+		interrupts[6] &= enabledInterrupts[IRQ_CHIP];
+
+		// Valid PREAMBLE and SYNC, packet data now begins
+		if (interrupts[4] & (1 << SI446X_SYNC_DETECT_PEND))
+		{
+			//fix_invalidSync_irq(1);
+			//		si446x_setupCallback(SI446X_CBS_INVALIDSYNC, 1); // Enable INVALID_SYNC when a new packet starts, sometimes a corrupted packet will mess the radio up
+			if (!read_rssi)
+				_rssi = getLatchedRSSI();
+			(data->rssi) = _rssi;
+			// eprintf("Sync detect: RSSI %d", rssi);
+			SI446X_CB_RXBEGIN(_rssi);
+		}
+
+		// Valid packet
+		if (interrupts[2] & (1 << SI446X_PACKET_RX_PEND))
+		{
+			len = 0;
+			SI446X_ATOMIC()
+			{
+				CHIPSELECT()
+				{
+					spi_transfer_nr(SI446X_CMD_READ_RX_FIFO);
+					len = spi_transfer(0xFF); // read 1 byte
+				}
+			}
+			setState(SI446X_STATE_RX);
+			if (!read_rssi)
+				_rssi = getLatchedRSSI();
+			// eprintf("RX packet pending: RSSI %d, length: %u", rssi, len);
+			SI446X_CB_RXCOMPLETE(len, _rssi);
+			(data->rssi) = _rssi;
+			if (len != 0xff)
+				read_rx_fifo = true;
+		}
+		// Corrupted packet
+		// NOTE: This will still be called even if the address did not match, but the packet failed the CRC
+		// This will not be called if the address missed, but the packet passed CRC
+		if (interrupts[2] & (1 << SI446X_CRC_ERROR_PEND))
+		{
+#if IDLE_STATE == SI446X_STATE_READY
+			if (getState() == SI446X_STATE_SPI_ACTIVE)
+				setState(IDLE_STATE); // We're in sleep mode (acually, we're now in SPI active mode) after an invalid packet to fix the INVALID_SYNC issue
+#endif
+			SI446X_CB_RXINVALID(getLatchedRSSI()); // TODO remove RSSI stuff for invalid packets, entering SLEEP mode looses the latched value?
+			eprintf("CRC invalid");
+		}
+
+		// Packet sent
+		if (interrupts[2] & (1 << SI446X_PACKET_SENT_PEND))
+			SI446X_CB_SENT();
+
+		if (interrupts[6] & (1 << SI446X_LOW_BATT_PEND))
+			SI446X_CB_LOWBATT();
+
+		if (interrupts[6] & (1 << SI446X_WUT_PEND))
+			SI446X_CB_WUT();
+
+		if (read_rx_fifo)
+		{
+			uint8_t buff[MAX_PACKET_LEN];
+			memset(buff, 0x0, MAX_PACKET_LEN);
+			SI446X_ATOMIC()
+			{
+				CHIPSELECT()
+				{
+					spi_transfer_nr(SI446X_CMD_READ_RX_FIFO);
+					for (uint8_t i = 0; i < len; i++)
+						((uint8_t *)buff)[i] = spi_transfer(0xFF);
+				}
+			}
+			setState(SI446X_STATE_RX);
+			// copy data to buffer
+			pthread_mutex_lock(data->lock);
+			if (ringbuf_memcpy_into(data->rbuf, buff, len) != NULL)
+				eprintf("Buffer head is NULL");
+			if (ringbuf_bytes_used(data->rbuf) > 0) // data available
+				pthread_cond_signal(data->avail);	// let the read function know
+			pthread_mutex_unlock(data->lock);
+		}
+	}
+}
+
+c_ringbuf dbuf[1];
+
+#define BUFFER_MAX_SIZE (MAX_PACKET_LEN * 64)
+
 void si446x_init()
 {
 	gpioSetMode(SI446X_CSN, GPIO_OUT);
@@ -389,6 +520,21 @@ void si446x_init()
 
 	enabledInterrupts[IRQ_PACKET] = (1 << SI446X_PACKET_RX_PEND) | (1 << SI446X_CRC_ERROR_PEND);
 	//enabledInterrupts[IRQ_MODEM] = (1<<SI446X_SYNC_DETECT_PEND);
+	// set up receive interrupt callback
+	memset(dbuf, 0x0, sizeof(c_ringbuf));
+	dbuf->rbuf = ringbuf_new(BUFFER_MAX_SIZE);
+	if (dbuf->rbuf == NULL)
+	{
+		eprintf("Could not allocate memory for buffer");
+		exit(-1);
+	}
+	pthread_mutex_init(dbuf->lock, NULL);
+	pthread_mutex_init(dbuf->avail_m, NULL);
+	if (gpioRegisterIRQ(SI446X_IRQ, GPIO_IRQ_FALL, &si446x_receive, dbuf, SI446X_TOUT) <= 0)
+	{
+		eprintf("Could not set up receiver interrupt");
+		exit(-2);
+	}
 	si446x_setupCallback(SI446X_CBS_RXBEGIN, 1); // enable receive interrupt
 	atexit(si446x_destroy);
 }
@@ -554,113 +700,34 @@ uint8_t si446x_sleep()
 	return 1;
 }
 
-int si446x_read(void *buff, uint8_t maxlen, int16_t *rssi)
+int si446x_read(void *buff, ssize_t maxlen, int16_t *rssi)
 {
-	bool read_rx_fifo = false;
-	bool read_rssi = false;
-	int16_t _rssi = 0;
-	uint8_t len = 0;
-	int retval = -1;
-retry:
-    read_rssi = false;
-	if (gpioRead(SI446X_IRQ) == GPIO_HIGH)
+	if (!ringbuf_is_empty(dbuf->rbuf)) // buffer not empty, can read now
 	{
-		retval = gpioWaitIRQ(SI446X_IRQ, GPIO_IRQ_FALL, SI446X_READ_TOUT);
-		if (retval <= 0) // error or timeout
-		{
-			return -1;
-		}
-	}
-	// else, we have an interrupt to process
-	uint8_t interrupts[8];
-	interrupt(interrupts); // read in IRQ vectors
-	// We could read the enabled interrupts properties instead of keep their states in RAM, but that would be much slower
-	interrupts[2] &= enabledInterrupts[IRQ_PACKET];
-	interrupts[4] &= enabledInterrupts[IRQ_MODEM];
-	interrupts[6] &= enabledInterrupts[IRQ_CHIP];
-
-	// Valid PREAMBLE and SYNC, packet data now begins
-	if (interrupts[4] & (1 << SI446X_SYNC_DETECT_PEND))
-	{
-		//fix_invalidSync_irq(1);
-		//		si446x_setupCallback(SI446X_CBS_INVALIDSYNC, 1); // Enable INVALID_SYNC when a new packet starts, sometimes a corrupted packet will mess the radio up
-		if (!read_rssi)
-			_rssi = getLatchedRSSI();
-		if (rssi != NULL)
-			*rssi = _rssi;
-		// eprintf("Sync detect: RSSI %d", rssi);
-		SI446X_CB_RXBEGIN(_rssi);
-	}
-
-	// Valid packet
-	if (interrupts[2] & (1 << SI446X_PACKET_RX_PEND))
-	{
-		len = 0;
-		SI446X_ATOMIC()
-		{
-			CHIPSELECT()
-			{
-				spi_transfer_nr(SI446X_CMD_READ_RX_FIFO);
-				len = spi_transfer(0xFF); // read 1 byte
-			}
-		}
-		setState(SI446X_STATE_RX);
-		if (!read_rssi)
-			_rssi = getLatchedRSSI();
-		// eprintf("RX packet pending: RSSI %d, length: %u", rssi, len);
-		SI446X_CB_RXCOMPLETE(len, _rssi);
-		if (rssi != NULL)
-			*rssi = _rssi;
-		if (len != 0xff)
-			read_rx_fifo = true;
-		retval = len; // success
-	}
-
-	// Corrupted packet
-	// NOTE: This will still be called even if the address did not match, but the packet failed the CRC
-	// This will not be called if the address missed, but the packet passed CRC
-	if (interrupts[2] & (1 << SI446X_CRC_ERROR_PEND))
-	{
-#if IDLE_STATE == SI446X_STATE_READY
-		if (getState() == SI446X_STATE_SPI_ACTIVE)
-			setState(IDLE_STATE); // We're in sleep mode (acually, we're now in SPI active mode) after an invalid packet to fix the INVALID_SYNC issue
-#endif
-		SI446X_CB_RXINVALID(getLatchedRSSI()); // TODO remove RSSI stuff for invalid packets, entering SLEEP mode looses the latched value?
-		eprintf("CRC invalid");
-		retval = -SI446X_CRC_INVALID;
-	}
-
-	// Packet sent
-	if (interrupts[2] & (1 << SI446X_PACKET_SENT_PEND))
-		SI446X_CB_SENT();
-
-	if (interrupts[6] & (1 << SI446X_LOW_BATT_PEND))
-		SI446X_CB_LOWBATT();
-
-	if (interrupts[6] & (1 << SI446X_WUT_PEND))
-		SI446X_CB_WUT();
-
-	if (read_rx_fifo)
-	{
-		if (len > maxlen)
-		{
-			eprintf("Received %u bytes larger than buffer size %u", len, maxlen);
-			len = maxlen;
-		}
-		SI446X_ATOMIC()
-		{
-			CHIPSELECT()
-			{
-				spi_transfer_nr(SI446X_CMD_READ_RX_FIFO);
-				for (uint8_t i = 0; i < len; i++)
-					((uint8_t *)buff)[i] = spi_transfer(0xFF);
-			}
-		}
-		setState(SI446X_STATE_RX);
+		goto read;
 	}
 	else
-		goto retry;
-	return retval;
+	{
+		struct timespec tm;
+		if (get_diff(&tm, 500) < 0)
+			return -1; // error
+		if (!pthread_cond_timedwait(dbuf->avail, dbuf->avail_m, &tm))
+			return 0; // time out
+		goto read;
+	}
+read:
+	pthread_mutex_lock(dbuf->lock);
+	*rssi = dbuf->rssi;
+	ssize_t avail_sz = ringbuf_bytes_used(dbuf->rbuf);
+	if (avail_sz < maxlen)
+		maxlen = avail_sz; // we read only as much as we can
+	if (ringbuf_memcpy_from(buff, dbuf->rbuf, maxlen) == NULL)
+	{
+		eprintf("Read 0 bytes");
+		maxlen = 0;
+	}
+	pthread_mutex_unlock(dbuf->lock);
+	return maxlen;
 }
 
 static int Si446x_TX(void *packet, uint8_t len, uint8_t channel, si446x_state_t onTxFinish)
