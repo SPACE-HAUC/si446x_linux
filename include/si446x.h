@@ -11,9 +11,8 @@
 
 #ifndef _SI443X_H_
 #define _SI443X_H_
-#include "spibus/spibus.h"
-#include "gpiodev/gpiodev.h"
 #include <stdio.h>
+#include <stdint.h>
 
 #ifndef eprintf
 #define eprintf(str, ...)                                                        \
