@@ -386,6 +386,7 @@ typedef struct
 	pthread_mutex_t avail_m[1];
 	pthread_cond_t avail[1];
 	int16_t rssi;
+    ssize_t buf_sz;
 } c_ringbuf;
 
 static void si446x_receive(void *_data)
@@ -480,14 +481,12 @@ static void si446x_receive(void *_data)
 			// copy data to buffer
 			if (len != 0)
 			{
-                eprintf("\033[31m""Received %d packets, size %u""\033[0m", ++tot_pack, len);
+                // eprintf("\033[31m""Received %d packets, size %u""\033[0m", ++tot_pack, len);
 				pthread_mutex_lock(data->lock);
-				if (ringbuf_memcpy_into(data->rbuf, buff, len) == NULL)
-					eprintf("Buffer head is NULL");
-				if (ringbuf_bytes_used(data->rbuf) > 0) // data available
-                {
+                data->buf_sz += len;
+                ringbuf_memcpy_into(data->rbuf, buff, len);
+				if (data->buf_sz > 0) // data available
 					pthread_cond_signal(data->avail);	// let the read function know
-                }
 				pthread_mutex_unlock(data->lock);
 			}
             read_rx_fifo = false;
@@ -540,6 +539,7 @@ void si446x_init()
 	}
 	pthread_mutex_init(dbuf->lock, NULL);
 	pthread_mutex_init(dbuf->avail_m, NULL);
+    dbuf->buf_sz = 0;
 	if (gpioRegisterIRQ(SI446X_IRQ, GPIO_IRQ_FALL, &si446x_receive, dbuf, SI446X_TOUT) <= 0)
 	{
 		eprintf("Could not set up receiver interrupt");
@@ -716,7 +716,7 @@ int si446x_read(void *buff, ssize_t maxlen, int16_t *rssi)
     ssize_t avail_sz = -1;
 begin:
 	pthread_mutex_lock(dbuf->lock);
-	empty = (ringbuf_bytes_used(dbuf->rbuf) <= 0);
+	empty = (dbuf->buf_sz <= 0);
 	pthread_mutex_unlock(dbuf->lock);
 	if (!empty) // buffer not empty, can read now
 	{
@@ -746,6 +746,7 @@ read:
 		eprintf("Read 0 bytes");
 		maxlen = 0;
 	}
+    dbuf->buf_sz -= maxlen;
 	pthread_mutex_unlock(dbuf->lock);
 	return maxlen;
 }
