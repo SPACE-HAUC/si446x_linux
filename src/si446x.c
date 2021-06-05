@@ -389,6 +389,7 @@ typedef struct
 
 static void si446x_receive(void *_data)
 {
+    eprintf();
 	c_ringbuf *data = (c_ringbuf *)_data;
 	bool read_rx_fifo = false;
 	bool read_rssi = false;
@@ -482,7 +483,10 @@ static void si446x_receive(void *_data)
 				if (ringbuf_memcpy_into(data->rbuf, buff, len) == NULL)
 					eprintf("Buffer head is NULL");
 				if (ringbuf_bytes_used(data->rbuf) > 0) // data available
+                {
+                    eprintf("Triggering read");
 					pthread_cond_signal(data->avail);	// let the read function know
+                }
 				pthread_mutex_unlock(data->lock);
 			}
             read_rx_fifo = false;
