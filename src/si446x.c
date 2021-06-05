@@ -479,7 +479,7 @@ static void si446x_receive(void *_data)
 			if (len != 0)
 			{
 				pthread_mutex_lock(data->lock);
-				if (ringbuf_memcpy_into(data->rbuf, buff, len) != NULL)
+				if (ringbuf_memcpy_into(data->rbuf, buff, len) == NULL)
 					eprintf("Buffer head is NULL");
 				if (ringbuf_bytes_used(data->rbuf) > 0) // data available
 					pthread_cond_signal(data->avail);	// let the read function know
