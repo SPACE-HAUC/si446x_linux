@@ -717,6 +717,7 @@ int si446x_read(void *buff, ssize_t maxlen, int16_t *rssi)
 	pthread_mutex_unlock(dbuf->lock);
 	if (!empty) // buffer not empty, can read now
 	{
+        eprintf("Buffer not empty");
 		goto read;
 	}
 	else
@@ -725,7 +726,10 @@ int si446x_read(void *buff, ssize_t maxlen, int16_t *rssi)
 		if (get_diff(&tm, SI446X_READ_TOUT) < 0)
 			return -1; // error
 		if (!pthread_cond_timedwait(dbuf->avail, dbuf->avail_m, &tm))
+        {
+            eprintf("Data available on read");
 			return 0; // time out
+        }
 	}
 read:
 	pthread_mutex_lock(dbuf->lock);
