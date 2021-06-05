@@ -522,7 +522,6 @@ void si446x_init()
 	enabledInterrupts[IRQ_PACKET] = (1 << SI446X_PACKET_RX_PEND) | (1 << SI446X_CRC_ERROR_PEND);
 	//enabledInterrupts[IRQ_MODEM] = (1<<SI446X_SYNC_DETECT_PEND);
 	// set up receive interrupt callback
-	memset(dbuf, 0x0, sizeof(c_ringbuf));
 	dbuf->rbuf = ringbuf_new(BUFFER_MAX_SIZE);
 	if (dbuf->rbuf == NULL)
 	{
