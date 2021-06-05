@@ -389,7 +389,6 @@ typedef struct
 
 static void si446x_receive(void *_data)
 {
-    eprintf();
 	c_ringbuf *data = (c_ringbuf *)_data;
 	static bool read_rx_fifo = false;
 	static bool read_rssi = false;
@@ -484,7 +483,6 @@ static void si446x_receive(void *_data)
 					eprintf("Buffer head is NULL");
 				if (ringbuf_bytes_used(data->rbuf) > 0) // data available
                 {
-                    eprintf("Triggering read");
 					pthread_cond_signal(data->avail);	// let the read function know
                 }
 				pthread_mutex_unlock(data->lock);
@@ -712,12 +710,13 @@ uint8_t si446x_sleep()
 int si446x_read(void *buff, ssize_t maxlen, int16_t *rssi)
 {
 	bool empty = false;
+    ssize_t avail_sz = -1;
+begin:
 	pthread_mutex_lock(dbuf->lock);
 	empty = (ringbuf_bytes_used(dbuf->rbuf) <= 0);
 	pthread_mutex_unlock(dbuf->lock);
 	if (!empty) // buffer not empty, can read now
 	{
-        eprintf("Buffer not empty");
 		goto read;
 	}
 	else
@@ -727,14 +726,17 @@ int si446x_read(void *buff, ssize_t maxlen, int16_t *rssi)
 			return -1; // error
 		if (!pthread_cond_timedwait(dbuf->avail, dbuf->avail_m, &tm))
         {
-            eprintf("Data available on read");
 			return 0; // time out
         }
 	}
 read:
 	pthread_mutex_lock(dbuf->lock);
 	*rssi = dbuf->rssi;
-	ssize_t avail_sz = ringbuf_bytes_used(dbuf->rbuf);
+	if ((avail_sz = ringbuf_bytes_used(dbuf->rbuf)) <= 0)
+    {
+        pthread_mutex_unlock(dbuf->lock);
+        goto begin;
+    }
 	if (avail_sz < maxlen)
 		maxlen = avail_sz; // we read only as much as we can
 	if (ringbuf_memcpy_from(buff, dbuf->rbuf, maxlen) == NULL)
