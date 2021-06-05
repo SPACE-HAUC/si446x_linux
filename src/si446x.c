@@ -480,7 +480,7 @@ static void si446x_receive(void *_data)
 			// copy data to buffer
 			if (len != 0)
 			{
-                eprintf("Received %d packets, size %u", tot_pack, len);
+                eprintf("\033[31m""Received %d packets, size %u""\033[0m", ++tot_pack, len);
 				pthread_mutex_lock(data->lock);
 				if (ringbuf_memcpy_into(data->rbuf, buff, len) == NULL)
 					eprintf("Buffer head is NULL");
