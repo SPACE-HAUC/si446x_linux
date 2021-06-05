@@ -132,21 +132,32 @@ static inline uint8_t cdeselect(void)
 
 #define CHIPSELECT() for (uint8_t _cs = cselect(); _cs; _cs = cdeselect())
 
-#define SI446X_NO_INTERRUPT() for (uint8_t __unused_var = 1; __unused_var; __unused_var = 0)
+static int isr_state = 0;
 
-static int interrupt_on()
+static void interrupt_on();
+
+static int interrupt_off()
+{
+	gpioUnregisterIRQ(SI446X_IRQ);
+	isr_state++;
+	return 1;
+}
+
+#define SI446X_NO_INTERRUPT() for (int _cs3 = interrupt_off(), __unused_var __attribute__((__cleanup__(interrupt_on))); _cs3; _cs3 = 0)
+
+static int atomic_on()
 {
 	pthread_mutex_lock(si446x_spi_access);
 	return 1;
 }
 
-static void interrupt_off(int *in)
+static void atomic_off(int *in)
 {
 	(void)in;
 	pthread_mutex_unlock(si446x_spi_access);
 }
 
-#define SI446X_ATOMIC() for (int _cs2 = interrupt_on(), _var_clean __attribute__((__cleanup__(interrupt_off))) = 1; _cs2; _cs2 = 0)
+#define SI446X_ATOMIC() for (int _cs2 = atomic_on(), _var_clean __attribute__((__cleanup__(atomic_off))) = 1; _cs2; _cs2 = 0)
 
 // Read CTS and if its ok then read the command buffer
 static uint8_t getResponse(void *buff, uint8_t len)
@@ -409,16 +420,16 @@ static void si446x_receive(void *_data)
 		interrupts[6] &= enabledInterrupts[IRQ_CHIP];
 
 		// Valid PREAMBLE and SYNC, packet data now begins
-		if (interrupts[4] & (1 << SI446X_SYNC_DETECT_PEND))
-		{
-			//fix_invalidSync_irq(1);
-			//		si446x_setupCallback(SI446X_CBS_INVALIDSYNC, 1); // Enable INVALID_SYNC when a new packet starts, sometimes a corrupted packet will mess the radio up
-			if (!read_rssi)
-				_rssi = getLatchedRSSI();
-			(data->rssi) = _rssi;
-			// eprintf("Sync detect: RSSI %d", rssi);
-			SI446X_CB_RXBEGIN(_rssi);
-		}
+		// if (interrupts[4] & (1 << SI446X_SYNC_DETECT_PEND))
+		// {
+		// 	//fix_invalidSync_irq(1);
+		// 	//		si446x_setupCallback(SI446X_CBS_INVALIDSYNC, 1); // Enable INVALID_SYNC when a new packet starts, sometimes a corrupted packet will mess the radio up
+		// 	if (!read_rssi)
+		// 		_rssi = getLatchedRSSI();
+		// 	(data->rssi) = _rssi;
+		// 	// eprintf("Sync detect: RSSI %d", rssi);
+		// 	SI446X_CB_RXBEGIN(_rssi);
+		// }
 
 		// Valid packet
 		if (interrupts[2] & (1 << SI446X_PACKET_RX_PEND))
@@ -455,14 +466,14 @@ static void si446x_receive(void *_data)
 		}
 
 		// Packet sent
-		if (interrupts[2] & (1 << SI446X_PACKET_SENT_PEND))
-			SI446X_CB_SENT();
+		// if (interrupts[2] & (1 << SI446X_PACKET_SENT_PEND))
+		// 	SI446X_CB_SENT();
 
-		if (interrupts[6] & (1 << SI446X_LOW_BATT_PEND))
-			SI446X_CB_LOWBATT();
+		// if (interrupts[6] & (1 << SI446X_LOW_BATT_PEND))
+		// 	SI446X_CB_LOWBATT();
 
-		if (interrupts[6] & (1 << SI446X_WUT_PEND))
-			SI446X_CB_WUT();
+		// if (interrupts[6] & (1 << SI446X_WUT_PEND))
+		// 	SI446X_CB_WUT();
 
 		if (read_rx_fifo)
 		{
@@ -496,6 +507,15 @@ static void si446x_receive(void *_data)
 }
 
 c_ringbuf dbuf[1];
+
+static void interrupt_on()
+{
+	if (isr_state > 0)
+		isr_state--;
+	if (isr_state == 0)
+		gpioRegisterIRQ(SI446X_IRQ, GPIO_IRQ_FALL, si446x_receive, dbuf, SI446X_READ_TOUT);
+	return;
+}
 
 #define BUFFER_MAX_SIZE (MAX_PACKET_LEN * 64)
 
@@ -540,7 +560,7 @@ void si446x_init()
 	pthread_mutex_init(dbuf->lock, NULL);
 	pthread_mutex_init(dbuf->avail_m, NULL);
     dbuf->buf_sz = 0;
-	if (gpioRegisterIRQ(SI446X_IRQ, GPIO_IRQ_FALL, &si446x_receive, dbuf, SI446X_TOUT) <= 0)
+	if (gpioRegisterIRQ(SI446X_IRQ, GPIO_IRQ_FALL, &si446x_receive, dbuf, SI446X_READ_TOUT) <= 0)
 	{
 		eprintf("Could not set up receiver interrupt");
 		exit(-2);
