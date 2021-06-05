@@ -713,7 +713,7 @@ int si446x_read(void *buff, ssize_t maxlen, int16_t *rssi)
 	else
 	{
 		struct timespec tm;
-		if (get_diff(&tm, 500) < 0)
+		if (get_diff(&tm, SI446X_READ_TOUT) < 0)
 			return -1; // error
 		if (!pthread_cond_timedwait(dbuf->avail, dbuf->avail_m, &tm))
 			return 0; // time out
