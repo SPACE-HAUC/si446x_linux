@@ -393,6 +393,7 @@ static void si446x_receive(void *_data)
 	c_ringbuf *data = (c_ringbuf *)_data;
 	static bool read_rx_fifo = false;
 	static bool read_rssi = false;
+    static int tot_pack = 0;
 	int16_t _rssi = 0;
 	static uint8_t len = 0;
 	while (gpioRead(SI446X_IRQ) == GPIO_LOW)
@@ -479,6 +480,7 @@ static void si446x_receive(void *_data)
 			// copy data to buffer
 			if (len != 0)
 			{
+                eprintf("Received %d packets, size %u", tot_pack, len);
 				pthread_mutex_lock(data->lock);
 				if (ringbuf_memcpy_into(data->rbuf, buff, len) == NULL)
 					eprintf("Buffer head is NULL");
