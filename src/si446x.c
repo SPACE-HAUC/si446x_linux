@@ -373,6 +373,7 @@ static void applyStartupConfig(void)
 
 static void si446x_destroy(void)
 {
+	gpioUnregisterIRQ(SI446X_IRQ);
 	si446x_sleep();
 	spibus_destroy(si446x_spi);
 }
