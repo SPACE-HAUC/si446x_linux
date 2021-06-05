@@ -513,8 +513,10 @@ static void interrupt_on()
 	if (isr_state > 0)
 		isr_state--;
 	if (isr_state == 0)
+	{
+		gpioSetMode(SI446X_IRQ, GPIO_IRQ_FALL);
 		gpioRegisterIRQ(SI446X_IRQ, GPIO_IRQ_FALL, si446x_receive, dbuf, SI446X_READ_TOUT);
-	return;
+	}return;
 }
 
 #define BUFFER_MAX_SIZE (MAX_PACKET_LEN * 64)
