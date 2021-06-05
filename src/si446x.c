@@ -730,7 +730,8 @@ begin:
 	}
 read:
 	pthread_mutex_lock(dbuf->lock);
-	*rssi = dbuf->rssi;
+    if (rssi != NULL)
+	    *rssi = dbuf->rssi;
 	if ((avail_sz = ringbuf_bytes_used(dbuf->rbuf)) <= 0)
     {
         pthread_mutex_unlock(dbuf->lock);
