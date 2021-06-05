@@ -143,7 +143,8 @@ static int interrupt_off()
 	return 1;
 }
 
-#define SI446X_NO_INTERRUPT() for (int _cs3 = interrupt_off(), __unused_var __attribute__((__cleanup__(interrupt_on))); _cs3; _cs3 = 0)
+// #define SI446X_NO_INTERRUPT() for (int _cs3 = interrupt_off(), __unused_var __attribute__((__cleanup__(interrupt_on))); _cs3; _cs3 = 0)
+#define SI446X_NO_INTERRUPT() for (int _cs3 = 1; _cs3; _cs3 = 0)
 
 static int atomic_on()
 {
@@ -163,25 +164,30 @@ static void atomic_off(int *in)
 static uint8_t getResponse(void *buff, uint8_t len)
 {
 	uint8_t cts = 0;
-
+	uint8_t *dout = (uint8_t *)malloc(len + 2); // 1 for cmd, 1 for cts
+	memset(dout, 0xff, len + 2);				// memset the whole output array
+	uint8_t *din = (uint8_t *)malloc(len + 2);	// no need to memset input
 	SI446X_ATOMIC()
 	{
 		CHIPSELECT()
 		{
+			// set command
+			dout[0] = SI446X_CMD_READ_CMD_BUFF;
 			// Send command
-			spi_transfer_nr(SI446X_CMD_READ_CMD_BUFF);
+			spibus_xfer_full(si446x_spi, din, len + 2, dout, len + 2);
 
 			// Get CTS value
-			cts = (spi_transfer(0xFF) == 0xFF);
+			cts = din[1]; // din[0] is read while writing read_cmd_buf, the next value is cts
 
 			if (cts)
 			{
-				// Get response data
-				for (uint8_t i = 0; i < len; i++)
-					((uint8_t *)buff)[i] = spi_transfer(0xFF);
+				// memcpy
+				memcpy(buff, din + 2, len);
 			}
 		}
 	}
+	free(dout);
+	free(din);
 	return cts;
 }
 
@@ -212,8 +218,7 @@ static void doAPI(void *data, uint8_t len, void *out, uint8_t outLen)
 			{
 				CHIPSELECT()
 				{
-					for (uint8_t i = 0; i < len; i++)
-						spi_transfer_nr(((uint8_t *)data)[i]); // (pgm_read_byte(&((uint8_t*)data)[i]));
+					spibus_xfer(si446x_spi, data, len);
 				}
 			}
 
@@ -397,15 +402,34 @@ typedef struct
 	pthread_mutex_t avail_m[1];
 	pthread_cond_t avail[1];
 	int16_t rssi;
-    ssize_t buf_sz;
+	ssize_t buf_sz;
 } c_ringbuf;
+
+static void si446x_internal_read(uint8_t *buf, ssize_t len)
+{
+	uint8_t *din = (uint8_t *)malloc(len + 1);
+	uint8_t *dout = (uint8_t *)malloc(len + 1);
+	memset(dout, 0xff, len + 1);
+	SI446X_ATOMIC()
+	{
+		CHIPSELECT()
+		{
+			dout[0] = SI446X_CMD_READ_RX_FIFO;
+			spibus_xfer_full(si446x_spi, din, len + 1, dout, len + 1);
+			memcpy(buf, din + 1, len);
+		}
+	}
+	setState(SI446X_STATE_RX);
+	free(dout);
+	free(din);
+}
 
 static void si446x_receive(void *_data)
 {
 	c_ringbuf *data = (c_ringbuf *)_data;
 	static bool read_rx_fifo = false;
 	static bool read_rssi = false;
-    static int tot_pack = 0;
+	static int tot_pack = 0;
 	int16_t _rssi = 0;
 	static uint8_t len = 0;
 	while (gpioRead(SI446X_IRQ) == GPIO_LOW)
@@ -435,15 +459,7 @@ static void si446x_receive(void *_data)
 		if (interrupts[2] & (1 << SI446X_PACKET_RX_PEND))
 		{
 			len = 0;
-			SI446X_ATOMIC()
-			{
-				CHIPSELECT()
-				{
-					spi_transfer_nr(SI446X_CMD_READ_RX_FIFO);
-					len = spi_transfer(0xFF); // read 1 byte
-				}
-			}
-			setState(SI446X_STATE_RX);
+			si446x_internal_read(&len, 1);
 			if (!read_rssi)
 				_rssi = getLatchedRSSI();
 			// eprintf("RX packet pending: RSSI %d, length: %u", rssi, len);
@@ -479,29 +495,20 @@ static void si446x_receive(void *_data)
 		{
 			uint8_t buff[MAX_PACKET_LEN];
 			memset(buff, 0x0, MAX_PACKET_LEN);
-			SI446X_ATOMIC()
-			{
-				CHIPSELECT()
-				{
-					spi_transfer_nr(SI446X_CMD_READ_RX_FIFO);
-					for (uint8_t i = 0; i < len; i++)
-						((uint8_t *)buff)[i] = spi_transfer(0xFF);
-				}
-			}
-			setState(SI446X_STATE_RX);
+			si446x_internal_read(buff, len);
 			// copy data to buffer
 			if (len != 0)
 			{
-                // eprintf("\033[31m""Received %d packets, size %u""\033[0m", ++tot_pack, len);
+				// eprintf("\033[31m""Received %d packets, size %u""\033[0m", ++tot_pack, len);
 				pthread_mutex_lock(data->lock);
-                data->buf_sz += len;
-                ringbuf_memcpy_into(data->rbuf, buff, len);
-				if (data->buf_sz > 0) // data available
-					pthread_cond_signal(data->avail);	// let the read function know
+				data->buf_sz += len;
+				ringbuf_memcpy_into(data->rbuf, buff, len);
+				if (data->buf_sz > 0)				  // data available
+					pthread_cond_signal(data->avail); // let the read function know
 				pthread_mutex_unlock(data->lock);
 			}
-            read_rx_fifo = false;
-            len = 0;
+			read_rx_fifo = false;
+			len = 0;
 		}
 	}
 }
@@ -516,7 +523,8 @@ static void interrupt_on()
 	{
 		gpioSetMode(SI446X_IRQ, GPIO_IRQ_FALL);
 		gpioRegisterIRQ(SI446X_IRQ, GPIO_IRQ_FALL, si446x_receive, dbuf, SI446X_READ_TOUT);
-	}return;
+	}
+	return;
 }
 
 #define BUFFER_MAX_SIZE (MAX_PACKET_LEN * 64)
@@ -561,7 +569,7 @@ void si446x_init()
 	}
 	pthread_mutex_init(dbuf->lock, NULL);
 	pthread_mutex_init(dbuf->avail_m, NULL);
-    dbuf->buf_sz = 0;
+	dbuf->buf_sz = 0;
 	if (gpioRegisterIRQ(SI446X_IRQ, GPIO_IRQ_FALL, &si446x_receive, dbuf, SI446X_READ_TOUT) <= 0)
 	{
 		eprintf("Could not set up receiver interrupt");
@@ -735,7 +743,7 @@ uint8_t si446x_sleep()
 int si446x_read(void *buff, ssize_t maxlen, int16_t *rssi)
 {
 	bool empty = false;
-    ssize_t avail_sz = -1;
+	ssize_t avail_sz = -1;
 begin:
 	pthread_mutex_lock(dbuf->lock);
 	empty = (dbuf->buf_sz <= 0);
@@ -748,19 +756,19 @@ begin:
 	{
 		struct timespec tm;
 		if (get_diff(&tm, SI446X_READ_TOUT) < 0)
-			return -1; // error
+			return -1;															  // error
 		if (pthread_cond_timedwait(dbuf->avail, dbuf->avail_m, &tm) == ETIMEDOUT) // ETIMEDOUT
-            return 0; // timeout
+			return 0;															  // timeout
 	}
 read:
 	pthread_mutex_lock(dbuf->lock);
-    if (rssi != NULL)
-	    *rssi = dbuf->rssi;
+	if (rssi != NULL)
+		*rssi = dbuf->rssi;
 	if ((avail_sz = ringbuf_bytes_used(dbuf->rbuf)) <= 0)
-    {
-        pthread_mutex_unlock(dbuf->lock);
-        goto begin;
-    }
+	{
+		pthread_mutex_unlock(dbuf->lock);
+		goto begin;
+	}
 	if (avail_sz < maxlen)
 		maxlen = avail_sz; // we read only as much as we can
 	if (ringbuf_memcpy_from(buff, dbuf->rbuf, maxlen) == NULL)
@@ -768,7 +776,7 @@ read:
 		eprintf("Read 0 bytes");
 		maxlen = 0;
 	}
-    dbuf->buf_sz -= maxlen;
+	dbuf->buf_sz -= maxlen;
 	pthread_mutex_unlock(dbuf->lock);
 	return maxlen;
 }
