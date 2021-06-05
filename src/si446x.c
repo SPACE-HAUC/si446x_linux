@@ -391,10 +391,10 @@ static void si446x_receive(void *_data)
 {
     eprintf();
 	c_ringbuf *data = (c_ringbuf *)_data;
-	bool read_rx_fifo = false;
-	bool read_rssi = false;
+	static bool read_rx_fifo = false;
+	static bool read_rssi = false;
 	int16_t _rssi = 0;
-	uint8_t len = 0;
+	static uint8_t len = 0;
 	while (gpioRead(SI446X_IRQ) == GPIO_LOW)
 	{
 		read_rssi = false;
@@ -490,6 +490,7 @@ static void si446x_receive(void *_data)
 				pthread_mutex_unlock(data->lock);
 			}
             read_rx_fifo = false;
+            len = 0;
 		}
 	}
 }
