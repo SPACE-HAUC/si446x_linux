@@ -25,19 +25,6 @@ static spibus si446x_spi[1];
 #include <time.h>
 #include <sys/time.h>
 
-int get_diff(struct timespec *tm, int tout_ms)
-{
-	if (tout_ms < 0)
-		return -1;
-	if (clock_gettime(CLOCK_MONOTONIC, tm) < 0)
-		return -1;
-	ssize_t sec = tout_ms / 1000;
-	tout_ms = tout_ms % 1000; // only miliseconds left
-	tm->tv_sec += sec; // ms to sec
-	tm->tv_nsec = tout_ms * 1000 * 1000; // ms to ns
-	return 1;
-}
-
 #ifndef eprintf
 #define eprintf(str, ...)                                                        \
 	{                                                                            \
@@ -45,6 +32,19 @@ int get_diff(struct timespec *tm, int tout_ms)
 		fflush(stderr);                                                          \
 	}
 #endif
+
+int get_diff(struct timespec *tm, int tout_ms)
+{
+	if (tout_ms < 0)
+		return -1;
+	if (clock_gettime(CLOCK_REALTIME, tm) < 0)
+		return -1;
+	time_t sec = (tout_ms / 1000) + tm->tv_sec;
+	long nsec = (tout_ms % 1000) * 1000000L + tm->tv_nsec;
+	tm->tv_sec = sec + (nsec / 1000000000L);
+	tm->tv_nsec = nsec % 1000000000L;
+	return 1;
+}
 
 static pthread_mutex_t si446x_spi_access[1] = {PTHREAD_MUTEX_INITIALIZER};
 
@@ -702,7 +702,11 @@ uint8_t si446x_sleep()
 
 int si446x_read(void *buff, ssize_t maxlen, int16_t *rssi)
 {
-	if (!ringbuf_is_empty(dbuf->rbuf)) // buffer not empty, can read now
+	bool empty = false;
+	pthread_mutex_lock(dbuf->lock);
+	empty = ringbuf_is_empty(dbuf->rbuf);
+	pthread_mutex_unlock(dbuf->lock);
+	if (!empty) // buffer not empty, can read now
 	{
 		goto read;
 	}
