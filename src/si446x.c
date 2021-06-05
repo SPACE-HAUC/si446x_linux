@@ -485,6 +485,7 @@ static void si446x_receive(void *_data)
 					pthread_cond_signal(data->avail);	// let the read function know
 				pthread_mutex_unlock(data->lock);
 			}
+            read_rx_fifo = false;
 		}
 	}
 }
