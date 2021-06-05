@@ -24,6 +24,7 @@ static spibus si446x_spi[1];
 #include <stdlib.h>
 #include <time.h>
 #include <sys/time.h>
+#include <errno.h>
 
 #ifndef eprintf
 #define eprintf(str, ...)                                                        \
@@ -724,7 +725,8 @@ begin:
 		struct timespec tm;
 		if (get_diff(&tm, SI446X_READ_TOUT) < 0)
 			return -1; // error
-		eprintf("timedwait: %d", pthread_cond_timedwait(dbuf->avail, dbuf->avail_m, &tm));
+		if (pthread_cond_timedwait(dbuf->avail, dbuf->avail_m, &tm) == ETIMEDOUT) // ETIMEDOUT
+            return 0; // timeout
 	}
 read:
 	pthread_mutex_lock(dbuf->lock);
