@@ -707,7 +707,7 @@ int si446x_read(void *buff, ssize_t maxlen, int16_t *rssi)
 {
 	bool empty = false;
 	pthread_mutex_lock(dbuf->lock);
-	empty = ringbuf_is_empty(dbuf->rbuf);
+	empty = (ringbuf_bytes_used(dbuf->rbuf) <= 0);
 	pthread_mutex_unlock(dbuf->lock);
 	if (!empty) // buffer not empty, can read now
 	{
@@ -720,7 +720,6 @@ int si446x_read(void *buff, ssize_t maxlen, int16_t *rssi)
 			return -1; // error
 		if (!pthread_cond_timedwait(dbuf->avail, dbuf->avail_m, &tm))
 			return 0; // time out
-		goto read;
 	}
 read:
 	pthread_mutex_lock(dbuf->lock);
