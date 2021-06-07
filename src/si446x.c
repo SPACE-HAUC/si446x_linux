@@ -48,6 +48,7 @@ int get_diff(struct timespec *tm, int tout_ms)
 }
 
 static pthread_mutex_t si446x_spi_access[1] = {PTHREAD_MUTEX_INITIALIZER};
+static pthread_mutex_t isr_lock[1];
 
 #include "si446x.h"
 #include "si446x_config.h"
@@ -432,6 +433,9 @@ static void si446x_receive(void *_data)
 	static int tot_pack = 0;
 	int16_t _rssi = 0;
 	static uint8_t len = 0;
+
+	pthread_mutex_lock(isr_lock);
+
 	while (gpioRead(SI446X_IRQ) == GPIO_LOW)
 	{
 		read_rssi = false;
@@ -511,6 +515,9 @@ static void si446x_receive(void *_data)
 			len = 0;
 		}
 	}
+
+	pthread_mutex_unlock(isr_lock);
+
 }
 
 c_ringbuf dbuf[1];
@@ -569,6 +576,7 @@ void si446x_init()
 	}
 	pthread_mutex_init(dbuf->lock, NULL);
 	pthread_mutex_init(dbuf->avail_m, NULL);
+	pthread_mutex_init(isr_lock, NULL);
 	dbuf->buf_sz = 0;
 	if (gpioRegisterIRQ(SI446X_IRQ, GPIO_IRQ_FALL, &si446x_receive, dbuf, SI446X_READ_TOUT) <= 0)
 	{
@@ -785,6 +793,8 @@ static int Si446x_TX(void *packet, uint8_t len, uint8_t channel, si446x_state_t 
 {
 	// TODO what happens if len is 0?
 
+	pthread_mutex_lock(isr_lock);
+
 #if SI446X_FIXED_LENGTH
 	// Stop the unused parameter warning
 	((void)(len));
@@ -792,8 +802,11 @@ static int Si446x_TX(void *packet, uint8_t len, uint8_t channel, si446x_state_t 
 
 	SI446X_NO_INTERRUPT()
 	{
-		if (getState() == SI446X_STATE_TX) // Already transmitting
+		if (getState() == SI446X_STATE_TX) {  // Already transmitting
+			pthread_mutex_unlock(isr_lock);
 			return 0;					   // error, already transmitting
+		}
+
 
 		// TODO collision avoid or maybe just do collision detect (RSSI jump)
 
@@ -839,6 +852,7 @@ static int Si446x_TX(void *packet, uint8_t len, uint8_t channel, si446x_state_t 
 		setProperty(SI446X_PKT_FIELD_2_LENGTH_LOW, MAX_PACKET_LEN);
 #endif
 	}
+	pthread_mutex_unlock(isr_lock);
 	return 1;
 }
 
