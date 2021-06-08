@@ -789,6 +789,18 @@ read:
 	return maxlen;
 }
 
+static void si446x_internal_write(uint8_t *buf, int len)
+{
+	uint8_t *dout = (uint8_t *)malloc(len + 2);
+	memset(dout, 0xff, len + 1);
+	dout[0] = SI446X_CMD_WRITE_TX_FIFO;
+	dout[1] = len;
+	memcpy(dout + 2, buf, len);
+	if (spibus_xfer(si446x_spi, dout, len + 2) < 0)
+		eprintf("Error writing TX data");
+	return;
+}
+
 static int Si446x_TX(void *packet, uint8_t len, uint8_t channel, si446x_state_t onTxFinish)
 {
 	// TODO what happens if len is 0?
@@ -819,15 +831,7 @@ static int Si446x_TX(void *packet, uint8_t len, uint8_t channel, si446x_state_t 
 			// Load data to FIFO
 			CHIPSELECT()
 			{
-				spi_transfer_nr(SI446X_CMD_WRITE_TX_FIFO);
-#if !SI446X_FIXED_LENGTH
-				spi_transfer_nr(len);
-				for (uint8_t i = 0; i < len; i++)
-					spi_transfer_nr(((uint8_t *)packet)[i]);
-#else
-				for (uint8_t i = 0; i < SI446X_FIXED_LENGTH; i++)
-					spi_transfer_nr(((uint8_t *)packet)[i]);
-#endif
+				si446x_internal_write(packet, len);
 			}
 		}
 
