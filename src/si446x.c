@@ -73,21 +73,6 @@ static pthread_mutex_t isr_lock[1];
 #define delay_ms(ms) usleep(ms * 1000)
 #define delay_us(us) usleep(us)
 
-#define spiSelect() (gpioWrite(SI446X_CSN, GPIO_LOW))
-#define spiDeselect() (gpioWrite(SI446X_CSN, GPIO_HIGH))
-
-static inline void spi_transfer_nr(uint8_t data)
-{
-	spibus_xfer(si446x_spi, &data, sizeof(uint8_t));
-}
-
-static inline uint8_t spi_transfer(uint8_t data)
-{
-	uint8_t out;
-	spibus_xfer_full(si446x_spi, &out, sizeof(uint8_t), &data, sizeof(uint8_t));
-	return out;
-}
-
 static const uint8_t config[] = RADIO_CONFIGURATION_DATA_ARRAY;
 
 static int SI446X_READ_TOUT = 10000; // 10 second timeout by default
@@ -121,17 +106,13 @@ void __attribute__((weak, alias("__empty_callback0"))) SI446X_CB_LOWBATT(void);
 
 static inline uint8_t cselect(void)
 {
-	spiSelect();
 	return 1;
 }
 
 static inline uint8_t cdeselect(void)
 {
-	spiDeselect();
 	return 0;
 }
-
-#define CHIPSELECT() for (uint8_t _cs = cselect(); _cs; _cs = cdeselect())
 
 static int isr_state = 0;
 
@@ -170,21 +151,18 @@ static uint8_t getResponse(void *buff, uint8_t len)
 	uint8_t *din = (uint8_t *)malloc(len + 2);	// no need to memset input
 	SI446X_ATOMIC()
 	{
-		CHIPSELECT()
+		// set command
+		dout[0] = SI446X_CMD_READ_CMD_BUFF;
+		// Send command
+		spibus_xfer_full(si446x_spi, din, len + 2, dout, len + 2);
+
+		// Get CTS value
+		cts = din[1]; // din[0] is read while writing read_cmd_buf, the next value is cts
+
+		if (cts)
 		{
-			// set command
-			dout[0] = SI446X_CMD_READ_CMD_BUFF;
-			// Send command
-			spibus_xfer_full(si446x_spi, din, len + 2, dout, len + 2);
-
-			// Get CTS value
-			cts = din[1]; // din[0] is read while writing read_cmd_buf, the next value is cts
-
-			if (cts)
-			{
-				// memcpy
-				memcpy(buff, din + 2, len);
-			}
+			// memcpy
+			memcpy(buff, din + 2, len);
 		}
 	}
 	free(dout);
@@ -217,10 +195,7 @@ static void doAPI(void *data, uint8_t len, void *out, uint8_t outLen)
 		{
 			SI446X_ATOMIC()
 			{
-				CHIPSELECT()
-				{
-					spibus_xfer(si446x_spi, data, len);
-				}
+				spibus_xfer(si446x_spi, data, len);
 			}
 
 			if (((uint8_t *)data)[0] == SI446X_CMD_IRCAL) // If we're doing an IRCAL then wait for its completion without a timeout since it can sometimes take a few seconds
@@ -302,11 +277,13 @@ static uint8_t getFRR(uint8_t reg)
 	uint8_t frr = 0;
 	SI446X_ATOMIC()
 	{
-		CHIPSELECT()
-		{
-			spi_transfer_nr(reg);
-			frr = spi_transfer(0xFF);
-		}
+		uint8_t dout[2], din[2];
+		dout[0] = reg;
+		dout[1] = 0xff;
+		din[0] = 0;
+		din[1] = 0;
+		spibus_xfer_full(si446x_spi, din, 2, dout, 2);
+		frr = din[1];
 	}
 	return frr;
 }
@@ -413,12 +390,9 @@ static void si446x_internal_read(uint8_t *buf, ssize_t len)
 	memset(dout, 0xff, len + 1);
 	SI446X_ATOMIC()
 	{
-		CHIPSELECT()
-		{
-			dout[0] = SI446X_CMD_READ_RX_FIFO;
-			spibus_xfer_full(si446x_spi, din, len + 1, dout, len + 1);
-			memcpy(buf, din + 1, len);
-		}
+		dout[0] = SI446X_CMD_READ_RX_FIFO;
+		spibus_xfer_full(si446x_spi, din, len + 1, dout, len + 1);
+		memcpy(buf, din + 1, len);
 	}
 	setState(SI446X_STATE_RX);
 	free(dout);
@@ -517,7 +491,6 @@ static void si446x_receive(void *_data)
 	}
 
 	pthread_mutex_unlock(isr_lock);
-
 }
 
 c_ringbuf dbuf[1];
@@ -538,8 +511,6 @@ static void interrupt_on()
 
 void si446x_init()
 {
-	gpioSetMode(SI446X_CSN, GPIO_OUT);
-	gpioWrite(SI446X_CSN, GPIO_HIGH); // set CS to high on init
 	gpioSetMode(SI446X_SDN, GPIO_OUT);
 	gpioSetMode(SI446X_IRQ, GPIO_IRQ_FALL);
 	gpioSetPullUpDown(SI446X_IRQ, GPIO_PUD_UP); // added pull up on pin
@@ -814,11 +785,11 @@ static int Si446x_TX(void *packet, uint8_t len, uint8_t channel, si446x_state_t 
 
 	SI446X_NO_INTERRUPT()
 	{
-		if (getState() == SI446X_STATE_TX) {  // Already transmitting
+		if (getState() == SI446X_STATE_TX)
+		{ // Already transmitting
 			pthread_mutex_unlock(isr_lock);
-			return 0;					   // error, already transmitting
+			return 0; // error, already transmitting
 		}
-
 
 		// TODO collision avoid or maybe just do collision detect (RSSI jump)
 
@@ -829,10 +800,7 @@ static int Si446x_TX(void *packet, uint8_t len, uint8_t channel, si446x_state_t 
 		SI446X_ATOMIC()
 		{
 			// Load data to FIFO
-			CHIPSELECT()
-			{
-				si446x_internal_write(packet, len);
-			}
+			si446x_internal_write(packet, len);
 		}
 
 #if !SI446X_FIXED_LENGTH
