@@ -762,14 +762,13 @@ read:
 
 static void si446x_internal_write(uint8_t *buf, int len)
 {
-	uint8_t *dout = (uint8_t *)malloc(len + 2);
-	memset(dout, 0xff, len + 1);
+	static uint8_t dout[SI446X_MAX_PACKET_LEN + 2]; // = (uint8_t *)malloc(len + 2);
+	memset(dout, 0xff, len + 2);
 	dout[0] = SI446X_CMD_WRITE_TX_FIFO;
 	dout[1] = len;
 	memcpy(dout + 2, buf, len);
 	if (spibus_xfer(si446x_spi, dout, len + 2) < 0)
 		eprintf("Error writing TX data");
-    free(dout);
 	return;
 }
 
