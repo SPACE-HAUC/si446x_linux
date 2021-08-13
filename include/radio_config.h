@@ -21,7 +21,7 @@
 /*
 // Crys_freq(Hz): 30000000    Crys_tol(ppm): 20    IF_mode: 2    High_perf_Ch_Fil: 1    OSRtune: 0    Ch_Fil_Bw_AFC: 1    ANT_DIV: 0    PM_pattern: 0    
 // MOD_type: 3    Rsymb(sps): 9600    Fdev(Hz): 2400    RXBW(Hz): 150000    Manchester: 0    AFC_en: 1    Rsymb_error: 0.0    Chip-Version: 2    
-// RF Freq.(MHz): 435    API_TC: 29    fhst: 250000    inputBW: 1    BERT: 0    RAW_dout: 0    D_source: 0    Hi_pfm_div: 1    
+// RF Freq.(MHz): 437.5    API_TC: 29    fhst: 250000    inputBW: 1    BERT: 0    RAW_dout: 0    D_source: 0    Hi_pfm_div: 1    
 // API_ARR_Det_en: 0    Fdev_error: 0    API_ETSI: 0    
 // 
 // # RX IF frequency is  -468750 Hz
@@ -30,14 +30,12 @@
 // Modulation index: 0.5
 */
 
-
 // CONFIGURATION PARAMETERS
-#define RADIO_CONFIGURATION_DATA_RADIO_XO_FREQ                     30000000L
-#define RADIO_CONFIGURATION_DATA_CHANNEL_NUMBER                    0x00
-#define RADIO_CONFIGURATION_DATA_RADIO_PACKET_LENGTH               0x07
-#define RADIO_CONFIGURATION_DATA_RADIO_STATE_AFTER_POWER_UP        0x03
-#define RADIO_CONFIGURATION_DATA_RADIO_DELAY_CNT_AFTER_RESET       0xF000
-
+#define RADIO_CONFIGURATION_DATA_RADIO_XO_FREQ 30000000L
+#define RADIO_CONFIGURATION_DATA_CHANNEL_NUMBER 0x00
+#define RADIO_CONFIGURATION_DATA_RADIO_PACKET_LENGTH 0x07
+#define RADIO_CONFIGURATION_DATA_RADIO_STATE_AFTER_POWER_UP 0x03
+#define RADIO_CONFIGURATION_DATA_RADIO_DELAY_CNT_AFTER_RESET 0xF000
 
 // CONFIGURATION COMMANDS
 
@@ -398,7 +396,7 @@
 //   FREQ_CONTROL_W_SIZE - Set window gating period (in number of crystal reference clock cycles) for counting VCO frequency during calibration.
 //   FREQ_CONTROL_VCOCNT_RX_ADJ - Adjust target count for VCO calibration in RX mode.
 */
-#define RF_FREQ_CONTROL_INTE_8 0x11, 0x40, 0x08, 0x00, 0x37, 0x09, 0x00, 0x00, 0x44, 0x44, 0x20, 0xFE
+#define RF_FREQ_CONTROL_INTE_8 0x11, 0x40, 0x08, 0x00, 0x3B, 0x09, 0x00, 0x00, 0x44, 0x44, 0x20, 0xFE
 
 /*
 // Command:                  RF_START_RX
@@ -948,119 +946,125 @@
 //   FREQ_CONTROL_W_SIZE - Set window gating period (in number of crystal reference clock cycles) for counting VCO frequency during calibration.
 //   FREQ_CONTROL_VCOCNT_RX_ADJ - Adjust target count for VCO calibration in RX mode.
 */
-#define RF_FREQ_CONTROL_INTE_8_1 0x11, 0x40, 0x08, 0x00, 0x39, 0x08, 0x00, 0x00, 0x44, 0x44, 0x20, 0xFE
+#define RF_FREQ_CONTROL_INTE_8_1 0x11, 0x40, 0x08, 0x00, 0x39, 0x0A, 0xAA, 0xAA, 0x44, 0x44, 0x20, 0xFE
 
-
-// AUTOMATICALLY GENERATED CODE! 
+// AUTOMATICALLY GENERATED CODE!
 // DO NOT EDIT/MODIFY BELOW THIS LINE!
 // --------------------------------------------
 
 #ifndef FIRMWARE_LOAD_COMPILE
-#define RADIO_CONFIGURATION_DATA_ARRAY { \
-        0x07, RF_POWER_UP, \
-        0x08, RF_GPIO_PIN_CFG, \
-        0x05, RF_GLOBAL_XO_TUNE_1, \
-        0x05, RF_GLOBAL_CONFIG_1, \
-        0x05, RF_PREAMBLE_CONFIG_1, \
-        0x10, RF_MODEM_MOD_TYPE_12, \
-        0x05, RF_MODEM_FREQ_DEV_0_1, \
-        0x10, RF_MODEM_TX_RAMP_DELAY_12, \
-        0x10, RF_MODEM_BCR_NCO_OFFSET_2_12, \
-        0x07, RF_MODEM_AFC_LIMITER_1_3, \
-        0x05, RF_MODEM_AGC_CONTROL_1, \
-        0x10, RF_MODEM_AGC_WINDOW_SIZE_12, \
-        0x09, RF_MODEM_RAW_CONTROL_5, \
-        0x08, RF_MODEM_RSSI_JUMP_THRESH_4, \
-        0x06, RF_MODEM_RAW_SEARCH2_2, \
-        0x06, RF_MODEM_SPIKE_DET_2, \
-        0x05, RF_MODEM_RSSI_MUTE_1, \
-        0x09, RF_MODEM_DSA_CTRL1_5, \
-        0x10, RF_MODEM_CHFLT_RX1_CHFLT_COE13_7_0_12, \
-        0x10, RF_MODEM_CHFLT_RX1_CHFLT_COE1_7_0_12, \
-        0x10, RF_MODEM_CHFLT_RX2_CHFLT_COE7_7_0_12, \
-        0x05, RF_PA_TC_1, \
-        0x0B, RF_SYNTH_PFDCP_CPFF_7, \
-        0x0C, RF_FREQ_CONTROL_INTE_8, \
-        0x08, RF_START_RX, \
-        0x05, RF_IRCAL, \
-        0x05, RF_IRCAL_1, \
-        0x05, RF_GLOBAL_CLK_CFG_1, \
-        0x08, RF_INT_CTL_ENABLE_4, \
-        0x08, RF_FRR_CTL_A_MODE_4, \
-        0x0D, RF_PREAMBLE_TX_LENGTH_9, \
-        0x0A, RF_SYNC_CONFIG_6, \
-        0x10, RF_PKT_CRC_CONFIG_12, \
-        0x10, RF_PKT_RX_THRESHOLD_12, \
-        0x10, RF_PKT_FIELD_3_CRC_CONFIG_12, \
-        0x10, RF_PKT_RX_FIELD_1_CRC_CONFIG_12, \
-        0x09, RF_PKT_RX_FIELD_4_CRC_CONFIG_5, \
-        0x08, RF_PKT_CRC_SEED_31_24_4, \
-        0x10, RF_MODEM_MOD_TYPE_12_1, \
-        0x05, RF_MODEM_FREQ_DEV_0_1_1, \
-        0x10, RF_MODEM_TX_RAMP_DELAY_12_1, \
-        0x10, RF_MODEM_BCR_NCO_OFFSET_2_12_1, \
-        0x07, RF_MODEM_AFC_LIMITER_1_3_1, \
-        0x05, RF_MODEM_AGC_CONTROL_1_1, \
-        0x10, RF_MODEM_AGC_WINDOW_SIZE_12_1, \
-        0x0E, RF_MODEM_RAW_CONTROL_10, \
-        0x06, RF_MODEM_RAW_SEARCH2_2_1, \
-        0x06, RF_MODEM_SPIKE_DET_2_1, \
-        0x05, RF_MODEM_RSSI_MUTE_1_1, \
-        0x09, RF_MODEM_DSA_CTRL1_5_1, \
-        0x10, RF_MODEM_CHFLT_RX1_CHFLT_COE13_7_0_12_1, \
-        0x10, RF_MODEM_CHFLT_RX1_CHFLT_COE1_7_0_12_1, \
-        0x10, RF_MODEM_CHFLT_RX2_CHFLT_COE7_7_0_12_1, \
-        0x08, RF_PA_MODE_4, \
-        0x0B, RF_SYNTH_PFDCP_CPFF_7_1, \
-        0x10, RF_MATCH_VALUE_1_12, \
-        0x0C, RF_FREQ_CONTROL_INTE_8_1, \
-        0x00 \
- }
+#define RADIO_CONFIGURATION_DATA_ARRAY                             \
+        {                                                          \
+                0x07, RF_POWER_UP,                                 \
+                    0x08, RF_GPIO_PIN_CFG,                         \
+                    0x05, RF_GLOBAL_XO_TUNE_1,                     \
+                    0x05, RF_GLOBAL_CONFIG_1,                      \
+                    0x05, RF_PREAMBLE_CONFIG_1,                    \
+                    0x10, RF_MODEM_MOD_TYPE_12,                    \
+                    0x05, RF_MODEM_FREQ_DEV_0_1,                   \
+                    0x10, RF_MODEM_TX_RAMP_DELAY_12,               \
+                    0x10, RF_MODEM_BCR_NCO_OFFSET_2_12,            \
+                    0x07, RF_MODEM_AFC_LIMITER_1_3,                \
+                    0x05, RF_MODEM_AGC_CONTROL_1,                  \
+                    0x10, RF_MODEM_AGC_WINDOW_SIZE_12,             \
+                    0x09, RF_MODEM_RAW_CONTROL_5,                  \
+                    0x08, RF_MODEM_RSSI_JUMP_THRESH_4,             \
+                    0x06, RF_MODEM_RAW_SEARCH2_2,                  \
+                    0x06, RF_MODEM_SPIKE_DET_2,                    \
+                    0x05, RF_MODEM_RSSI_MUTE_1,                    \
+                    0x09, RF_MODEM_DSA_CTRL1_5,                    \
+                    0x10, RF_MODEM_CHFLT_RX1_CHFLT_COE13_7_0_12,   \
+                    0x10, RF_MODEM_CHFLT_RX1_CHFLT_COE1_7_0_12,    \
+                    0x10, RF_MODEM_CHFLT_RX2_CHFLT_COE7_7_0_12,    \
+                    0x05, RF_PA_TC_1,                              \
+                    0x0B, RF_SYNTH_PFDCP_CPFF_7,                   \
+                    0x0C, RF_FREQ_CONTROL_INTE_8,                  \
+                    0x08, RF_START_RX,                             \
+                    0x05, RF_IRCAL,                                \
+                    0x05, RF_IRCAL_1,                              \
+                    0x05, RF_GLOBAL_CLK_CFG_1,                     \
+                    0x08, RF_INT_CTL_ENABLE_4,                     \
+                    0x08, RF_FRR_CTL_A_MODE_4,                     \
+                    0x0D, RF_PREAMBLE_TX_LENGTH_9,                 \
+                    0x0A, RF_SYNC_CONFIG_6,                        \
+                    0x10, RF_PKT_CRC_CONFIG_12,                    \
+                    0x10, RF_PKT_RX_THRESHOLD_12,                  \
+                    0x10, RF_PKT_FIELD_3_CRC_CONFIG_12,            \
+                    0x10, RF_PKT_RX_FIELD_1_CRC_CONFIG_12,         \
+                    0x09, RF_PKT_RX_FIELD_4_CRC_CONFIG_5,          \
+                    0x08, RF_PKT_CRC_SEED_31_24_4,                 \
+                    0x10, RF_MODEM_MOD_TYPE_12_1,                  \
+                    0x05, RF_MODEM_FREQ_DEV_0_1_1,                 \
+                    0x10, RF_MODEM_TX_RAMP_DELAY_12_1,             \
+                    0x10, RF_MODEM_BCR_NCO_OFFSET_2_12_1,          \
+                    0x07, RF_MODEM_AFC_LIMITER_1_3_1,              \
+                    0x05, RF_MODEM_AGC_CONTROL_1_1,                \
+                    0x10, RF_MODEM_AGC_WINDOW_SIZE_12_1,           \
+                    0x0E, RF_MODEM_RAW_CONTROL_10,                 \
+                    0x06, RF_MODEM_RAW_SEARCH2_2_1,                \
+                    0x06, RF_MODEM_SPIKE_DET_2_1,                  \
+                    0x05, RF_MODEM_RSSI_MUTE_1_1,                  \
+                    0x09, RF_MODEM_DSA_CTRL1_5_1,                  \
+                    0x10, RF_MODEM_CHFLT_RX1_CHFLT_COE13_7_0_12_1, \
+                    0x10, RF_MODEM_CHFLT_RX1_CHFLT_COE1_7_0_12_1,  \
+                    0x10, RF_MODEM_CHFLT_RX2_CHFLT_COE7_7_0_12_1,  \
+                    0x08, RF_PA_MODE_4,                            \
+                    0x0B, RF_SYNTH_PFDCP_CPFF_7_1,                 \
+                    0x10, RF_MATCH_VALUE_1_12,                     \
+                    0x0C, RF_FREQ_CONTROL_INTE_8_1,                \
+                    0x00                                           \
+        }
 #else
-#define RADIO_CONFIGURATION_DATA_ARRAY { 0 }
+#define RADIO_CONFIGURATION_DATA_ARRAY \
+        {                              \
+                0                      \
+        }
 #endif
 
 // DEFAULT VALUES FOR CONFIGURATION PARAMETERS
-#define RADIO_CONFIGURATION_DATA_RADIO_XO_FREQ_DEFAULT                     30000000L
-#define RADIO_CONFIGURATION_DATA_CHANNEL_NUMBER_DEFAULT                    0x00
-#define RADIO_CONFIGURATION_DATA_RADIO_PACKET_LENGTH_DEFAULT               0x10
-#define RADIO_CONFIGURATION_DATA_RADIO_STATE_AFTER_POWER_UP_DEFAULT        0x01
-#define RADIO_CONFIGURATION_DATA_RADIO_DELAY_CNT_AFTER_RESET_DEFAULT       0x1000
+#define RADIO_CONFIGURATION_DATA_RADIO_XO_FREQ_DEFAULT 30000000L
+#define RADIO_CONFIGURATION_DATA_CHANNEL_NUMBER_DEFAULT 0x00
+#define RADIO_CONFIGURATION_DATA_RADIO_PACKET_LENGTH_DEFAULT 0x10
+#define RADIO_CONFIGURATION_DATA_RADIO_STATE_AFTER_POWER_UP_DEFAULT 0x01
+#define RADIO_CONFIGURATION_DATA_RADIO_DELAY_CNT_AFTER_RESET_DEFAULT 0x1000
 
-#define RADIO_CONFIGURATION_DATA_RADIO_PATCH_INCLUDED                      0x00
-#define RADIO_CONFIGURATION_DATA_RADIO_PATCH_SIZE                          0x00
-#define RADIO_CONFIGURATION_DATA_RADIO_PATCH                               {  }
+#define RADIO_CONFIGURATION_DATA_RADIO_PATCH_INCLUDED 0x00
+#define RADIO_CONFIGURATION_DATA_RADIO_PATCH_SIZE 0x00
+#define RADIO_CONFIGURATION_DATA_RADIO_PATCH \
+        {                                    \
+        }
 
 #ifndef RADIO_CONFIGURATION_DATA_ARRAY
 #error "This property must be defined!"
 #endif
 
 #ifndef RADIO_CONFIGURATION_DATA_RADIO_XO_FREQ
-#define RADIO_CONFIGURATION_DATA_RADIO_XO_FREQ          RADIO_CONFIGURATION_DATA_RADIO_XO_FREQ_DEFAULT 
+#define RADIO_CONFIGURATION_DATA_RADIO_XO_FREQ RADIO_CONFIGURATION_DATA_RADIO_XO_FREQ_DEFAULT
 #endif
 
 #ifndef RADIO_CONFIGURATION_DATA_CHANNEL_NUMBER
-#define RADIO_CONFIGURATION_DATA_CHANNEL_NUMBER         RADIO_CONFIGURATION_DATA_CHANNEL_NUMBER_DEFAULT 
+#define RADIO_CONFIGURATION_DATA_CHANNEL_NUMBER RADIO_CONFIGURATION_DATA_CHANNEL_NUMBER_DEFAULT
 #endif
 
 #ifndef RADIO_CONFIGURATION_DATA_RADIO_PACKET_LENGTH
-#define RADIO_CONFIGURATION_DATA_RADIO_PACKET_LENGTH    RADIO_CONFIGURATION_DATA_RADIO_PACKET_LENGTH_DEFAULT 
+#define RADIO_CONFIGURATION_DATA_RADIO_PACKET_LENGTH RADIO_CONFIGURATION_DATA_RADIO_PACKET_LENGTH_DEFAULT
 #endif
 
 #ifndef RADIO_CONFIGURATION_DATA_RADIO_STATE_AFTER_POWER_UP
-#define RADIO_CONFIGURATION_DATA_RADIO_STATE_AFTER_POWER_UP   RADIO_CONFIGURATION_DATA_RADIO_STATE_AFTER_POWER_UP_DEFAULT 
+#define RADIO_CONFIGURATION_DATA_RADIO_STATE_AFTER_POWER_UP RADIO_CONFIGURATION_DATA_RADIO_STATE_AFTER_POWER_UP_DEFAULT
 #endif
 
 #ifndef RADIO_CONFIGURATION_DATA_RADIO_DELAY_CNT_AFTER_RESET
-#define RADIO_CONFIGURATION_DATA_RADIO_DELAY_CNT_AFTER_RESET  RADIO_CONFIGURATION_DATA_RADIO_DELAY_CNT_AFTER_RESET_DEFAULT 
+#define RADIO_CONFIGURATION_DATA_RADIO_DELAY_CNT_AFTER_RESET RADIO_CONFIGURATION_DATA_RADIO_DELAY_CNT_AFTER_RESET_DEFAULT
 #endif
 
-#define RADIO_CONFIGURATION_DATA { \
-                            Radio_Configuration_Data_Array,                            \
-                            RADIO_CONFIGURATION_DATA_CHANNEL_NUMBER,                   \
-                            RADIO_CONFIGURATION_DATA_RADIO_PACKET_LENGTH,              \
-                            RADIO_CONFIGURATION_DATA_RADIO_STATE_AFTER_POWER_UP,       \
-                            RADIO_CONFIGURATION_DATA_RADIO_DELAY_CNT_AFTER_RESET       \
-                            }
+#define RADIO_CONFIGURATION_DATA                                         \
+        {                                                                \
+                Radio_Configuration_Data_Array,                          \
+                    RADIO_CONFIGURATION_DATA_CHANNEL_NUMBER,             \
+                    RADIO_CONFIGURATION_DATA_RADIO_PACKET_LENGTH,        \
+                    RADIO_CONFIGURATION_DATA_RADIO_STATE_AFTER_POWER_UP, \
+                    RADIO_CONFIGURATION_DATA_RADIO_DELAY_CNT_AFTER_RESET \
+        }
 
 #endif /* RADIO_CONFIG_H_ */

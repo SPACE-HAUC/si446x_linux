@@ -17,9 +17,10 @@ all: lib basic_test
 
 lib: $(LIBTARGET)
 
-basic_test: basic_test.o $(LIBTARGET)
-	@$(CC) -o $@.out $< $(LIBTARGET) $(EDLDFLAGS)
-	@echo "$@.out built"
+basic_test: basic_test_send.o basic_test_recv.o $(LIBTARGET)
+	@$(CC) -o test_send.out basic_test_send.o $(LIBTARGET) $(EDLDFLAGS)
+	@$(CC) -o test_recv.out basic_test_recv.o $(LIBTARGET) $(EDLDFLAGS)
+	@echo "basic test built"
 
 $(LIBTARGET): $(COBJS)
 	@ar -crus $(LIBTARGET) $(COBJS)

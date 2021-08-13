@@ -769,6 +769,7 @@ static void si446x_internal_write(uint8_t *buf, int len)
 	memcpy(dout + 2, buf, len);
 	if (spibus_xfer(si446x_spi, dout, len + 2) < 0)
 		eprintf("Error writing TX data");
+    free(dout);
 	return;
 }
 

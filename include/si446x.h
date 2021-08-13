@@ -107,7 +107,7 @@ static char *si446x_errstr[] = {
 #endif
 
 #ifdef __cplusplus
-// extern "C" {
+extern "C" {
 #endif
 /**
 * @brief Initialise, must be called before anything else!
@@ -309,7 +309,7 @@ int si446x_get_read_irq_tout(void);
 int si446x_set_read_irq_tout(int tout);
 
 #ifdef __cplusplus
-// }
+}
 #endif
 
 #endif // _SI443X_H_
